@@ -144,10 +144,10 @@ def get_markers(user_num_bmarks):
     vals = range(5, 35, 5)
     for val in vals:
         bmark_val = ''
-    	if val == int(user_num_bmarks):
-        	bmark_val = '*'
-    	marker_dict['a{}_marker'.format(val)] = bmark_val
-	return marker_dict
+        if val == int(user_num_bmarks):
+            bmark_val = '*'
+        marker_dict['{}'.format(val)] = bmark_val
+    return marker_dict
 
 
 def show_bmarks():
@@ -228,11 +228,11 @@ def show_bmarks():
                                         <LI class="item"><A HREF="{u}num=30">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a30}30&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI></UL>
                                 </DIV>&nbsp;</TD>'''.format(n=num_bmarks_menu_offset,
                                                             u=url_get_base,
-                                                            a5=marker_dict[a5_marker],
-                                                            a10=marker_dict[a10_marker],
-                                                            a15=marker_dict[a15_marker],
-                                                            a20=marker_dict[a20_marker],
-                                                            a30=marker_dict[a30_marker])
+                                                            a5=marker_dict['5'],
+                                                            a10=marker_dict['10'],
+                                                            a15=marker_dict['15'],
+                                                            a20=marker_dict['20'],
+                                                            a30=marker_dict['30'])
         return_data += '</TR></TABLE>'
         for bmark_row in bmarks_qry:
             notes_string = ''
