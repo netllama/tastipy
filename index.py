@@ -108,7 +108,7 @@ def list_tags():
     return_data = ''
     base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
     auth = auth_check()
-    tags_sql_base = 'SELECT id,tag FROM tags '
+    tags_sql_base = 'SELECT id, tag FROM tags '
     if auth['is_authenticated'] and auth['username']:
 		tags_sql = "{s} WHERE owner='{u}' ORDER BY tag".format(s=tags_sql_base, u=auth['username'])
     else:
@@ -242,7 +242,7 @@ def show_bmarks():
             notes = bmark_row[3].replace('&amp;quot;', '"').replace('&amp;#039;',"'")
             name = bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;',"'")
             owner = bmark_row[5]
-            tags_sql = "SELECT tag FROM bmarks WHERE url='{u}'".format(u=url)
+            tags_sql = "SELECT tag FROM bmarks WHERE url='{u}' ".format(u=url)
             if hash_check() and request.query.get('whose') and request.query.get('whose') == username:
                 tags_sql += "AND owner='{u}' ".format(u=username)
                 bmark_user_edit_string = '''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
@@ -254,9 +254,6 @@ def show_bmarks():
                                                                                   h=base_url)
             tags_sql += 'AND length(tag)>0 GROUP BY tag ORDER BY tag LIMIT 15'
             tags_qry = db_qry([tags_sql, None], 'select')
-            if not tags_qry:
-                return_data += '<span class="bad">Tags query FAILED:<BR>{}<BR>'.format(tags_sql)
-                return return_data
             if notes:
                 notes_string = '<BR><span class="small"><B>{n}</B></span>'.format(n=notes)
             return_data += '''<TABLE><TR><TD valign="top"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
