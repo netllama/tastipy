@@ -41,6 +41,10 @@ def bmarks():
 def bmarks():
 	return 'login'
 
+@route('/register')
+def bmarks():
+    return 'register'
+
 @route('/tags')
 def bmarks():
 	return 'tags'

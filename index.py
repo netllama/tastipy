@@ -352,9 +352,9 @@ def hash_check():
     if request.get_cookie('tasti_hash'):
         password_hash = request.get_cookie('tasti_hash')
 
-    hash_sql = "SELECT count(id) FROM users WHERE username='{u}' AND password='{p}'".format(u=username, p=password_hash)
+    hash_sql = "SELECT id FROM users WHERE username='{u}' AND password='{p}'".format(u=username, p=password_hash)
     hash_qry = db_qry([hash_sql, None], 'select')
-    if hash_qry:
+    if len(hash_qry) and hash_qry[0]:
         return hash_qry
 
 
