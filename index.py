@@ -243,7 +243,7 @@ def show_bmarks():
             name = bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;',"'")
             owner = bmark_row[5]
             tags_sql = "SELECT tag FROM bmarks WHERE url='{u}' ".format(u=url)
-            if hash_check() and request.query.get('whose') and request.query.get('whose') == username:
+            if hash_check() and request.query.get('whose') and request.query.get('whose') == mine:
                 tags_sql += "AND owner='{u}' ".format(u=username)
                 bmark_user_edit_string = '''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
                                             &nbsp;|&nbsp;<A HREF="{h}bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'''.format(i=bm_id,
