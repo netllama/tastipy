@@ -47,7 +47,8 @@ def bmarks():
 
 @route('/tags')
 def bmarks():
-	return 'tags'
+	return_data = get_bmarks()
+	return return_data
 	
 # serve css
 @route('/css/<filename:path>')
