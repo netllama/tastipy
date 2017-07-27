@@ -2,7 +2,7 @@ from bottle import route, request, get, post
 from index import header0, do_tags, list_tags, footer
 
 
-def get_bmarks():
+def get_tags():
     """Returns bmarks page/index content."""
     base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
     return_data = ''

@@ -1,6 +1,7 @@
 from bottle import route, template, error, request, static_file, get, post
 from index import get_index
 from bmarks import get_bmarks
+from tags import get_tags
 #account, add, bmarklet, bmarks, edit, edit_tags, importbm, login, tags
 
 @route('/')
@@ -47,7 +48,7 @@ def bmarks():
 
 @route('/tags')
 def bmarks():
-	return_data = get_bmarks()
+	return_data = get_tags()
 	return return_data
 	
 # serve css
