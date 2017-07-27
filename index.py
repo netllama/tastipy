@@ -70,7 +70,7 @@ def do_tags():
     """Show bookmarks associated with a tag."""
     base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
     user_num_bmarks = 15
-    num_bmarks_menu_offset = 77
+    num_bmarks_menu_offset = 53
     return_data = ''
     tag_id = ''
     tag_get = ''
@@ -84,7 +84,7 @@ def do_tags():
         username = request.get_cookie('tasti_username').lower()
         if request.query.get('mine') and request.query.get('mine') == 'yes':
             show_mine = "AND owner='{}'".format(username)
-            num_bmarks_menu_offset = 47
+            num_bmarks_menu_offset = 60
         if tag_id:
             tags_sql += "WHERE id='{t}' {m} LIMIT 1".format(t=tag_id,
                                                             m=show_mine)
@@ -143,10 +143,13 @@ def do_tags():
         num_bmarks_all = len(bmarks_qry_all_res)
         num_bmarks = len(bmarks_qry)
         if num_bmarks:
-            return_data += '<TABLE width="100%"><TR><TD width="85%"><span class="huge">Bookmarks tagged with <B>{t}</B></span></TD>'.format(t=tag)
+            left_td_width = 100 - (22 + len(tag))
+            return_data += '''<TABLE width="100%"><TR>
+                                <TD width="{lw}%">
+                                <span class="huge">Bookmarks tagged with <B>{t}</B></span></TD>'''.format(lw=left_td_width, t=tag)
             # only render the bmarks/page menu on the 'MY BOOKMARKS' page
-            if num_bmarks_menu_offset == 47:
-                return_data += '''<TD width="{n}%">&nbsp;</TD><TD align="center" valign="top"><div id="menu">
+            if hash_check():
+                return_data += '''<TD valign="top"><div id="menu">
                                     <UL id="item1">
                                     <LI class="top"><B>Bookmarks/page</B></LI>
                                         <LI class="item"><A HREF="{u}num=5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a5}5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
@@ -180,11 +183,12 @@ def do_tags():
                     bmark_user_edit_string = '''<BR><span class="normal">Created by <A HREF="{h}bmarks?whose={o}">
                                                 <B>{o}</B></a>&nbsp;</span>'''.format(o=owner,
                                                                                       h=base_url)
-                return_data += '''<TABLE><TR><TD valign="top"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
-                                    <TD width="65%"><span class="big"><A HREF="{u}">{n}</a></span>
-                                    {no}{b}</TD></TR></TABLE><HR><BR>'''.format(l=last_update, u=url,
-                                                                                n=name, no=notes_string,
-                                                                                b=bmark_user_edit_string)
+                return_data += '''<TABLE><TR>
+                                    <TD valign="top" width="95"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
+                                    <TD><span class="big"><A HREF="{u}">{n}</a></span>{no}{b}</TD>
+                                </TR></TABLE><HR><BR>'''.format(l=last_update, u=url,
+                                                                n=name, no=notes_string,
+                                                                b=bmark_user_edit_string)
             # pagination settings
             my_row_count = num_bmarks_all
             total_pages = ceil(int(my_row_count) / int(max_results))
