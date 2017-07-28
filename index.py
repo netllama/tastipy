@@ -175,7 +175,7 @@ def do_tags():
                 name = bmark_row[5].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
                 if notes:
                     notes_string = '<BR><span class="small"><B>{n}</B></span>'.format(n=notes)
-                if hash_check():
+                if hash_check() and owner == username:
                     bmark_user_edit_string = '''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
                                                 &nbsp;|&nbsp;<A HREF="{h}bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'''.format(i=bm_id,
                                                                                                                                           h=base_url)
