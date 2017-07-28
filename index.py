@@ -432,14 +432,14 @@ def show_bmarks():
                     if hash_check() and request.query.get('whose'):
                         tag_sql += "AND owner='{u}'".format(u=username)
                     tag_sql += 'ORDER BY id LIMIT 1'
-                    tag_qry_res = db_qry([tags_sql, None], 'select')
+                    tag_qry_res = db_qry([tag_sql, None], 'select')
                     if not tag_qry_res:
                         return_data += '<span class="bad">Tags query FAILED:<BR>{}<BR>'.format(tags_sql)
                         return
                     tag_id = tag_qry_res[0][0]
                     return_data += '<A HREF="{h}tags?id={tid}">{t}</a>&nbsp;&nbsp;'.format(tid=tag_id,
-                                                                                        t=tag,
-                                                                                        h=base_url)
+                                                                                           t=tag,
+                                                                                           h=base_url)
                     tag_counter += 1
                     if tag_counter > 4:
                         tag_counter = 0
