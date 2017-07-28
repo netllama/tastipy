@@ -191,7 +191,7 @@ def do_tags():
                                                                 b=bmark_user_edit_string)
             # pagination settings
             my_row_count = num_bmarks_all
-            total_pages = ceil(int(my_row_count) / int(max_results))
+            total_pages = int(ceil(int(my_row_count) / float(max_results)))
             pagination = ''
 
             # Create a PREV link if one is needed
@@ -202,9 +202,6 @@ def do_tags():
                                                                                          u=user_num_bmarks,
                                                                                          h=base_url,
                                                                                          t=tag_get)
-            if not request.query.get('whose'):
-                page = 0
-                total_pages = 0
             # Create a NEXT link if one is needed
             if page < total_pages:
                 pagination += '''<A STYLE="text-decoration:none" title="NEXT PAGE" HREF="{h}tags?{m}&page={n}&num={u}{t}">
