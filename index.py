@@ -121,8 +121,8 @@ def do_tags():
         max_results = user_num_bmarks
         # Calculate the offset
         from_offset = (int(page) * int(max_results)) - int(max_results)
-        url_get_base = '{h}{u}'.format(h=base_url,
-                                       u=request.environ.get('QUERY_STRING'))
+        url_get_base = '{h}tags?{u}'.format(h=base_url,
+                                            u=request.environ.get('QUERY_STRING'))
         tag = tags[0]
         bmarks_sql_base = "SELECT id, date(last_update) as last_update, owner, url, notes, name FROM bmarks WHERE tag='{t}' ".format(t=tag)
         if username and request.query.get('mine') and request.query.get('mine') == 'yes':
@@ -152,11 +152,11 @@ def do_tags():
                 return_data += '''<TD valign="top"><div id="menu">
                                     <UL id="item1">
                                     <LI class="top"><B>Bookmarks/page</B></LI>
-                                        <LI class="item"><A HREF="{u}num=5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a5}5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}num=10">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a10}10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}num=15">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a15}15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}num=20">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a20}20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}num=30">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a30}30&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI></UL>
+                                        <LI class="item"><A HREF="{u}&num=5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a5}5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
+                                        <LI class="item"><A HREF="{u}&num=10">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a10}10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
+                                        <LI class="item"><A HREF="{u}&num=15">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a15}15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
+                                        <LI class="item"><A HREF="{u}&num=20">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a20}20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
+                                        <LI class="item"><A HREF="{u}&num=30">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a30}30&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI></UL>
                                     </DIV>&nbsp;</TD>'''.format(n=num_bmarks_menu_offset,
                                                                 u=url_get_base,
                                                                 a5=marker_dict['5'],
@@ -335,7 +335,7 @@ def show_bmarks():
     max_results = user_num_bmarks
     # Calculate the offset
     from_offset = (int(page) * int(max_results)) - int(max_results)
-    url_get_base = '{h}{u}'.format(h=base_url,
+    url_get_base = '{h}bmarks?{u}'.format(h=base_url,
                                    u=request.environ.get('QUERY_STRING'))
     bmarks_sql_base = '''SELECT distinct ON (url) url, id, date(last_update) AS last_update, notes, name, owner
                         FROM bmarks'''
@@ -427,12 +427,15 @@ def show_bmarks():
                     tag = tag_row[0]
                     tag_sql = "SELECT id FROM tags WHERE tag='{t}' ".format(t=tag)
                     if hash_check() and request.query.get('whose'):
-                        tag_sql += "AND owner='{u}'".format(u=username)
+                        sql_owner = request.query.get('whose')
+                        if request.query.get('whose') == 'mine':
+                            sql_owner = username
+                        tag_sql += "AND owner='{u}'".format(u=sql_owner)
                     tag_sql += 'ORDER BY id LIMIT 1'
                     tag_qry_res = db_qry([tag_sql, None], 'select')
                     if not tag_qry_res:
-                        return_data += '<span class="bad">Tags query FAILED:<BR>{}<BR>'.format(tags_sql)
-                        return
+                        return_data += '<span class="bad">Tags query FAILED:<BR>{}<BR>'.format(tag_sql)
+                        return return_data
                     tag_id = tag_qry_res[0][0]
                     return_data += '<A HREF="{h}tags?id={tid}">{t}</a>&nbsp;&nbsp;'.format(tid=tag_id,
                                                                                            t=tag,
