@@ -236,27 +236,29 @@ def do_bmarks():
     
     if auth['is_authenticated'] and auth['username'] and request.query.get('func') and request.query.get('id'):
     	username = auth['username']
-        id = request.query.get('id')
+        bmark_id = request.query.get('id')
         if request.query.get('func') == 'del':
-            old_bmark_sql = "SELECT created, url, notes, name FROM bmarks WHERE id='{i}' LIMIT 1".format(i=id)
-            old_bmark_res = ([old_bmark_sql, None], 'select')
+            old_bmark_sql = "SELECT created, url, notes, name FROM bmarks WHERE id='{i}' LIMIT 1".format(i=bmark_id)
+            old_bmark_res = db_qry([old_bmark_sql, None], 'select')
             if not old_bmark_res:
-            	return_data += '<span class="bad">Old Bookmark query FAILED<BR></span><BR><BR>'
+            	return_data += '''<span class="bad">Old Bookmark query FAILED<BR>{}<BR></span>
+                                  <BR><BR>'''.format(old_bmark_sql)
                 return return_data
             old_bmark = old_bmark_res[0]
             old_created = old_bmark[0]
             old_url = old_bmark[1]
             old_notes = old_bmark[2]
             old_name = old_bmark[3]
-            sql_vals = [username, old_url, old_name, old_notes]
-            bmark_del_sql = 'DELETE FROM bmarks WHERE owner=%s AND url=%s AND name=%s AND notes=%s'
-            bmark_del_qry = db_qry([old_bmark_sql, sql_vals], 'del')
+            bmark_del_sql = 'DELETE FROM bmarks WHERE id=%s AND owner=%s'
+            del_sql_vals = [bmark_id, username]
+            bmark_del_qry = db_qry([bmark_del_sql, del_sql_vals], 'del')
             if not bmark_del_qry:
             	# delete failed
-            	return_data += '<span class="bad">Bookmark deletion FAILED<BR></span><BR><BR>'
-                return return_data
+            	return_data += '''<span class="bad">Bookmark ( {n} ) deletion FAILED<BR>{s}</span>
+                                  <BR><BR>'''.format(n=old_name, s=bmark_del_sql)
             else:
-            	return_data += '<span class="huge">Bookmark successfully deleted</span><BR><BR>'
+            	return_data += '''<span class="huge">Bookmark ( {o} ) successfully deleted</span>
+                                  <BR><BR>'''.format(o=old_name)
     else:
     	return_data += show_bmarks()
     return return_data
