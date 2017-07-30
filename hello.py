@@ -2,45 +2,47 @@ from bottle import route, template, error, request, static_file, get, post
 from index import get_index
 from bmarks import get_bmarks
 from tags import get_tags
+from add import add_tags
 #account, add, bmarklet, bmarks, edit, edit_tags, importbm, login, tags
 
 @route('/')
 def myroot():
-	return_data = get_index()
-	return return_data
+    return_data = get_index()
+    return return_data
 
 @route('/account')
 def bmarks():
-	return 'account'
+    return 'account'
 
-@route('/add')
+@route('/add', method=['GET', 'POST'])
 def bmarks():
-	return 'add'
+    return_data = add_tags()
+    return return_data
 
 @route('/bmarklet')
 def bmarks():
-	return 'bmarklet'
+    return 'bmarklet'
 
 @route('/bmarks')
 def bmarks():
-	return_data = get_bmarks()
-	return return_data
+    return_data = get_bmarks()
+    return return_data
 
 @route('/edit')
 def bmarks():
-	return 'edit'
+    return 'edit'
 
 @route('/edit_tags')
 def bmarks():
-	return 'edit_tags'
+    return 'edit_tags'
 
 @route('/import')
 def bmarks():
-	return 'import'
+    return 'import'
 
 @route('/login')
 def bmarks():
-	return 'login'
+    return 'login'
 
 @route('/register')
 def bmarks():
@@ -48,8 +50,8 @@ def bmarks():
 
 @route('/tags')
 def bmarks():
-	return_data = get_tags()
-	return return_data
+    return_data = get_tags()
+    return return_data
 	
 # serve css
 @route('/css/<filename:path>')
@@ -59,12 +61,12 @@ def send_css(filename):
 # serve javascript
 @route('/js/<filename:re:.*\.js>')
 def send_js(filename):
-	return static_file(filename, root='/var/www/tasti/js')
+    return static_file(filename, root='/var/www/tasti/js')
 
 # serve images
 @route('/images/<filename:re:.*\.png>')
 def send_img(filename):
-	return static_file(filename, root='/var/www/tasti/images')
+    return static_file(filename, root='/var/www/tasti/images')
 
 @route('/hello')
 def hello():
@@ -76,8 +78,8 @@ def idx(name='Stranger'):
 
 @error(404)
 def handle404(error):
-	return '<H1>Ooops, its not here<BR>'
+    return '<H1>Ooops, its not here<BR>'
 
 @error(500)
 def handle500(error):
-	return '<H1>Oops, its broken:&nbsp;{}<BR>'.format(error)
+    return '<H1>Oops, its broken:&nbsp;{}<BR>'.format(error)

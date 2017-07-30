@@ -1,5 +1,7 @@
 import datetime
 import re
+from cgi import escape
+import HTMLParser
 import psycopg2
 import psycopg2.extras
 from bottle import route, request, get, post, response
@@ -48,7 +50,8 @@ def get_index():
 
 def header0():
     """Header content."""
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
+    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
+                                         sc=request.environ.get('SCRIPT_NAME'))
     auth_payload = auth_check()
     if auth_payload['is_authenticated']:
         header_string = '''&nbsp;Hi <A HREF="{h}account">{u}</a>&nbsp;|&nbsp;<A HREF="{h}login?do=1">Logout</a><BR><BR>
@@ -68,7 +71,8 @@ def header0():
 
 def do_tags():
     """Show bookmarks associated with a tag."""
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
+    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
+                                         sc=request.environ.get('SCRIPT_NAME'))
     user_num_bmarks = 15
     num_bmarks_menu_offset = 53
     return_data = ''
@@ -484,12 +488,128 @@ def show_bmarks():
     return return_data
 
 
+def do_add():
+    """Add new bookmark content."""
+    return_data = ''
+    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
+                                         sc=request.environ.get('SCRIPT_NAME'))
+    auth_payload = auth_check()
+    if auth_payload['is_authenticated'] and hash_check():
+        username = request.get_cookie('tasti_username').lower()
+        if request.method == 'POST' and request.forms.get('url'):
+            return_data += add_bmark_db(username)
+        return_data += add_bmark_form(base_url, request.get_cookie('tasti_username').lower())
+    else:
+        return_data += '''Only users who have <A HREF="{h}login?do=0">logged in</a>
+                          may add new bookmarks.<BR>'''.format(h=base_url)
+    return return_data
+
+
+def add_bmark_form(base_url, username):
+    """Generate form for adding a new bookmark."""
+    name = ''
+    url = ''
+    return_data = ''
+    if request.method == 'GET':
+        if request.query.get('url'):
+            url = request.query.get('url').strip()
+        if request.query.get('name'):
+            name = escape(request.query.get('name').strip(), quote=True)
+    # get list of pre-existing tags for the user
+    tags_sql = "SELECT tag FROM tags WHERE owner='{u}' ORDER BY tag LIMIT 150".format(u=username)
+    tags_qry = db_qry([tags_sql, None], 'select')
+    # generate add bookmark form
+    return_data += '''<span class="huge">Add a new bookmark to <B>Tasti</B>:</span><BR><BR> 
+                        <FORM method="POST" action="{u}add" id="add_bmark"><TABLE>'''.format(u=base_url)
+    return_data += '''<TR><TD>Name/Description*:&nbsp;</TD>
+                          <TD>&nbsp;</TD>
+                          <TD><INPUT TYPE="text" name="name" id="name" size="55" value="{n}"></TD>
+                      </TR>'''.format(n=name)
+    return_data += '''<TR><TD>URL*:&nbsp;</TD>
+                          <TD>&nbsp;</TD>
+                          <TD><INPUT TYPE="text" name="url" id="url" size="55" value="{u}"></TD>
+                      </TR>'''.format(u=url)
+    return_data += '''<TR><TD>Notes:&nbsp;</TD>
+                          <TD>&nbsp;</TD>
+                          <TD><INPUT TYPE="text" name="notes" id="notes" size="55"></TD></TR>
+		              <TR><TD>Tags:&nbsp;</TD>
+                          <TD>&nbsp;</TD>
+                          <TD><INPUT TYPE="text" name="tags" id="tags" size="55"></TD></TR>
+		              <TR><TD>&nbsp;</TD>
+                          <TD>&nbsp;</TD>
+                          <TD>&nbsp;</TD>
+                          <TD>&nbsp;</TD></TR>
+		              <TR><TD>&nbsp;</TD>
+                          <TD><DIV class="submit"><INPUT type="submit" value="Add" /></TD>
+                          <TD>&nbsp;</TD></TR>
+	                  </TABLE></FORM><BR>
+                      <span class="tiny">&nbsp;* Required field</span><BR><BR>'''
+    # display a clickable list of the user's tags that
+    # can be clicked to be added to the Tags form field above
+    if tags_qry:
+        html_parser = HTMLParser.HTMLParser()
+        tag_counter = 0
+        max_tags_per_row = 10
+        return_data += '''<span class="big">Click below to add one (or more) of your 
+                        pre-existing tags to the new bookmark above:</span><BR><BR>'''
+        for raw_tag_name in tags_qry:
+            tag_name = html_parser.unescape(raw_tag_name[0]).strip()
+            return_data += '''<A onclick="document.getElementById('tags').value=document.getElementById('tags').value + ' ' + '{t}';">
+                              {t}</a>&nbsp;&nbsp;'''.format(t=tag_name)
+            tag_counter += 1
+            if tag_counter >= max_tags_per_row:
+                # start new row of tags
+                return_data += '<BR>'
+                tag_counter = 1
+        return_data += '<BR><BR><BR>'
+    return return_data
+
+
+def add_bmark_db(username):
+    """Insert new bookmark into database."""
+    return_data = ''
+    bmark_name = escape(request.forms.get('name'), quote=True)
+    bmark_url = request.forms.get('url')
+    bmark_note = ''
+    if request.forms.get('notes'):
+        bmark_note = escape(request.forms.get('notes').strip(), quote=True)
+    bmark_tags_list = []
+    if request.forms.get('tags'):
+        # convert space separated tags into unique list
+        bmark_tags_list = set(request.forms.get('tags').strip().split(' '))
+    for raw_tag in bmark_tags_list:
+        # insert new tags and bookmark into database
+        tag = escape(raw_tag.strip(), quote=True)
+        user_has_tag_sql = "SELECT id FROM tags WHERE owner='{u}' AND tag='{t}'".format(u=username,
+                                                                                        t=tag)
+        user_has_tag_qry = db_qry([user_has_tag_sql, None], 'select')
+        if len(user_has_tag_qry) == 0 and tag:
+            # tag doesn't exist, so insert it
+            add_user_tag_sql = 'INSERT INTO tags (owner, tag) VALUES (%s, %s)'
+            add_user_tag_vals = [username, tag]
+            add_user_tag_qry = db_qry([add_user_tag_sql, add_user_tag_vals], 'insert')
+            if add_user_tag_qry is False:
+                return_data += '<span class="bad">Failed to insert new tag ({t})<BR>{s}<BR></span>'.format(t=tag,
+                                                                                                           s=add_user_tag_sql)
+                continue
+        add_bmark_sql = 'INSERT INTO bmarks (owner, url, notes, tag, name) VALUES (%s, %s, %s, %s, %s)'
+        add_bmark_vals = [username, bmark_url, bmark_note, tag, bmark_name]
+        add_bmark_qry = db_qry([add_bmark_sql, add_bmark_vals], 'insert')
+        if add_bmark_qry:
+            return_data += 'Bookmark <B>( {b} )</B> successfully added!'.format(b=bmark_name)
+        else:
+            # insert failed
+            return_data += '<span class="bad">Failed to insert new bookmark ({b})<BR>{s}<BR></span>'.format(b=bmark_name,
+                                                                                                            s=add_bmark_sql)
+    return return_data
+
+
 def footer():
     """Footer content."""
     base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
     year = year = datetime.date.today().year
     return_data = '''<span class="footer_class1">
-<CENTER><A HREF="{h}">HOME</a>&nbsp;<BR><A HREF="https://github.com/netllama/tasti">Tasti</a> is licensed under the <A HREF="http://www.gnu.org/licenses/gpl.html">GPL</a>.  Copyright {y}<BR>
+<CENTER><A HREF="{h}">HOME</a>&nbsp;<BR><A HREF="https://github.com/netllama/tastipy">Tasti</a> is licensed under the <A HREF="http://www.gnu.org/licenses/gpl.html">GPL</a>.  Copyright {y}<BR>
 </CENTER></span>'''.format(y=year, h=base_url)
     return return_data
 
