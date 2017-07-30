@@ -34,7 +34,6 @@ def get_bmarks():
     bottom = '''</div>
     </div>
 </body>
-</html>
-    '''
+</html>'''
     return_data += bottom
     return return_data

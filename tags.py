@@ -30,11 +30,9 @@ def get_tags():
     </div>
     <div id="footer">'''
     return_data += footer()
-    #return_data += str(request.environ)
     bottom = '''</div>
     </div>
 </body>
-</html>
-    '''
+</html>'''
     return_data += bottom
     return return_data
