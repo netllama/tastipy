@@ -6,6 +6,7 @@ import psycopg2
 import psycopg2.extras
 from bottle import route, request, get, post, response
 from math import ceil
+import hashlib
 
 
 CONN_STRING = 'host=127.0.0.1 dbname=tasti user=tasti password="" port=5432'
@@ -603,6 +604,99 @@ def add_bmark_db(username):
             # insert failed
             return_data += '<span class="bad">Failed to insert new bookmark ({b})<BR>{s}<BR></span>'.format(b=bmark_name,
                                                                                                             s=add_bmark_sql)
+    return return_data
+
+
+def generate_tabs():
+    """Generate tab content structure."""
+    return_data = ''
+    account_selected = ''
+    import_selected = ''
+    bmarklet_selected = ''
+    tag_selected = ''
+    ie_comment = 'these comments between lis solve a bug in IE that prevents spaces appearing between list items that appear on different lines in the source'
+    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
+                                         sc=request.environ.get('SCRIPT_NAME'))
+    selected = 'id="selected"'
+    script = request.environ.get('SCRIPT_URL').split('/')[-1]
+    if script == 'account':
+        account_selected = selected
+    if script == 'import':
+        import_selected = selected
+    if script == 'bmarklet':
+        bmarklet_selected = selected
+    if script == 'edit_tags':
+        tag_selected = selected
+    return_data += '''<div id="tabs"><ul>
+		              <li {a}><a href="{bu}account">Details</a></li><!-- {c} -->
+                      <li {i}><a href="{bu}import">Import&nbsp;Bookmarks</a></li><!-- {c} -->
+                      <li {b}><a href="{bu}bmarklet">Bookmarklet</a></li><!-- {c} -->
+                      <li {t}><a href="{bu}edit_tags">Tags</a></li><!-- -->
+                      </ul></div>'''.format(bu=base_url,
+                                            a=account_selected,
+                                            i=import_selected,
+                                            b=bmarklet_selected,
+                                            t=tag_selected,
+                                            c=ie_comment)
+    return return_data
+
+
+def account_mgmt():
+    """Render account management content."""
+    return_data = ''
+    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
+    auth = auth_check()
+    if auth['username'] and hash_check():
+        password = ''
+        name = ''
+        email = ''
+        username = auth['username']
+        return_data += '<span class="huge"><B>Tasti Account Management</B></span><BR><BR>'
+        account_sql = 'UPDATE users SET '
+        if request.method == 'POST':
+            # encode password and update in database
+            if request.forms.get('password0') and request.forms.get('password1'):
+                password0 = request.forms.get('password0').strip()
+                password1 = request.forms.get('password1').strip()
+                if password0 and password1 and password0 == password1:
+                    password = hashlib.sha1(password0).hexdigest()
+                    account_sql += "password='{p}', ".format(p=password)
+            # update name in database
+            if request.forms.get('fullname') and request.forms.get('fullname').strip():
+                fullname = request.forms.get('fullname').strip()
+                account_sql += "name='{f}', ".format(f=fullname)
+            # update email in database
+            if request.forms.get('email') and request.forms.get('email').strip():
+                email = request.forms.get('email').strip()
+                account_sql += "email='{e}', ".format(e=email)
+            if password or fullname or email:
+                account_sql += "username='{u}' WHERE username='{u}'".format(u=username)
+                account_qry = db_qry([account_sql, None], 'update')
+                if not account_qry:
+                    return_data += 'Account update failed:<BR>{s}<BR>'.format(s=account_sql)
+                else:
+                    return_data += '<span class="big"><B><i>Update Successful</i></B></span><BR><BR>'
+        # generate tab UI
+        script = request.environ.get('SCRIPT_URL').split('/')[-1]
+        page_name = generate_tabs()
+        if script == 'account':
+            return_data += account_details_form()
+        elif script == 'import':
+            if request.method == 'POST' and request.files.get('bmarks_file'):
+                # process file import
+                return_data += bmark_import_file()
+            else:
+                # show file import form
+                return_data += bmark_import_form()
+        elif script == 'bmarklet':
+            return_data += show_bmarklet()
+        elif script == 'edit_tags':
+            return_data += edit_tags()
+        else:
+            return_data += '<BR>Unknown function<BR><BR>'
+    else:
+        return_data += '''<BR>This page is only accessible to users who have 
+                            <A HREF="{h}login?do=0">logged in</a>.<BR><BR>'''.format(h=base_url)
     return return_data
 
 

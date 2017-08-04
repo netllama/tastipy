@@ -3,7 +3,9 @@ from index import get_index
 from bmarks import get_bmarks
 from tags import get_tags
 from add import add_tags
-#account, add, bmarklet, bmarks, edit, edit_tags, importbm, login, tags
+from bmarklet import get_bmarklet
+from account import get_account
+#account, add, edit, edit_tags, importbm, login
 
 @route('/')
 def myroot():
@@ -12,7 +14,8 @@ def myroot():
 
 @route('/account')
 def bmarks():
-    return 'account'
+    return_data = get_bmarklet()
+    return return_data
 
 @route('/add', method=['GET', 'POST'])
 def bmarks():
@@ -21,7 +24,8 @@ def bmarks():
 
 @route('/bmarklet')
 def bmarks():
-    return 'bmarklet'
+    return_data = get_bmarklet()
+    return return_data
 
 @route('/bmarks')
 def bmarks():
