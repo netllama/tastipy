@@ -641,6 +641,36 @@ def generate_tabs():
     return return_data
 
 
+def account_details_form(username, base_url):
+    """Render account details form content."""
+    name = ''
+    email = ''
+    return_data = ''
+    account_sql = "SELECT name, email FROM users WHERE username='{u}' ORDER BY username LIMIT 1".format(u=username)
+    account_qry = db_qry([account_sql, None], 'select')
+    if not account_qry:
+        return_data += 'Account select failed:<BR>{s}<BR>'.format(s=account_sql)
+        return return_data
+    name = account_qry[0][0]
+    email = account_qry[0][1]
+    return_data += '''<div id="content"><span class="big">Please edit the fields that you wish to change for your <B>
+                        Tasti</B> account:</span><BR><BR>
+                        <FORM method="POST" action="{bu}account" id="register"><TABLE>
+			            <TR><TD><label for="password0">Change your Password (at least 6 characters):&nbsp;</label></TD>
+                            <TD>&nbsp;</TD><TD><INPUT NAME="password0" TYPE="password" id="password0" /></TD></TR>
+			            <TR><TD><label for="password1">Enter the new password again:&nbsp;</label></TD>
+                            <TD>&nbsp;</TD><TD><INPUT NAME="password1" TYPE="password" id="password1" /></TD></TR>
+			            <TR><TD><label for="fullname">Update your full name:&nbsp;</label></TD>
+                            <TD>&nbsp;</TD><TD><INPUT NAME="fullname" TYPE="text" id="fullname" value="{n}" /></TD></TR>
+			            <TR><TD><label for="email">Update your email address:&nbsp;</label></TD>
+                            <TD>&nbsp;</TD><TD><INPUT NAME="email" TYPE="text" id="email" value="{e}" /></TD></TR>
+			            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
+			            <TR><TD>&nbsp;</TD><TD><DIV class="submit">
+                        <INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
+		                </TABLE></FORM><BR></div>'''.format(bu=base_url, n=name, e=email)
+    return return_data
+
+
 def account_mgmt():
     """Render account management content."""
     return_data = ''
@@ -680,7 +710,7 @@ def account_mgmt():
         script = request.environ.get('SCRIPT_URL').split('/')[-1]
         page_name = generate_tabs()
         if script == 'account':
-            return_data += account_details_form()
+            return_data += account_details_form(username, base_url)
         elif script == 'import':
             if request.method == 'POST' and request.files.get('bmarks_file'):
                 # process file import
