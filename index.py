@@ -708,7 +708,7 @@ def account_mgmt():
                     return_data += '<span class="big"><B><i>Update Successful</i></B></span><BR><BR>'
         # generate tab UI
         script = request.environ.get('SCRIPT_URL').split('/')[-1]
-        page_name = generate_tabs()
+        return_data += generate_tabs()
         if script == 'account':
             return_data += account_details_form(username, base_url)
         elif script == 'import':
