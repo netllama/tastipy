@@ -671,6 +671,19 @@ def account_details_form(username, base_url):
     return return_data
 
 
+def show_bmarklet(base_url):
+    """Render bookmarklet content."""
+    return_data = ''
+    bmarklet_url = '{a}add?url='.format(a=base_url)
+    bmarklet_string = """javascript:(function(){f='""" + bmarklet_url + """'+encodeURIComponent(window.location.href)+'&name='+encodeURIComponent(document.title)+'&notes='+encodeURIComponent(''+(window.getSelection?window.getSelection():document.getSelection?document.getSelection():document.selection.createRange().text));a=function(){if(!window.open(f+'noui=1&jump=doclose','d','location=yes,links=no,scrollbars=no,toolbar=no,width=550,height=550'))location.href=f+'jump=yes'};if(/Firefox/.test(navigator.userAgent)){setTimeout(a,0)}else{a()}})()"""
+    return_data += '''<BR><span class="huge">&nbsp;A bookmarklet is a link that you add to your browser's Toolbar. 
+                      It makes it easy to add a new bookmark to <B>Tasti</B>.</span><BR><BR>
+		              Drag the link below to your toolbar, and then you can click that link when viewing any web 
+                      page to quickly & easily add it as a bookmark.<BR><BR><BR>
+		              <CENTER><A HREF="{b}"><B>Add to Tasti</B></a></CENTER><BR><BR><BR>'''.format(b=bmarklet_string)
+    return return_data
+
+
 def account_mgmt():
     """Render account management content."""
     return_data = ''
@@ -719,7 +732,7 @@ def account_mgmt():
                 # show file import form
                 return_data += bmark_import_form()
         elif script == 'bmarklet':
-            return_data += show_bmarklet()
+            return_data += show_bmarklet(base_url)
         elif script == 'edit_tags':
             return_data += edit_tags()
         else:
