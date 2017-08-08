@@ -671,6 +671,52 @@ def account_details_form(username, base_url):
     return return_data
 
 
+def edit_tags(base_url, username):
+    """Render tag edit functionality."""
+    return_data = ''
+    if request.method == 'POST' and request.forms.get('taglist') and request.forms.get('submit'):
+        opt_type = request.forms.get('submit')
+        if opt_type == 'DELETE':
+            delete_tags(request.forms.get('taglist'))
+    elif request.method == 'POST' and request.forms.get('submit'):
+        return_data += '<BR>ZZZZZZZZZZZZZZZZZZZZZ<BR>'
+        opt_type = request.forms.get('submit')
+        return_data += '<BR>{}<BR>'.format(opt_type)
+        if opt_type == 'RENAME':
+            tag_rename(request.forms.get('tagname'))
+
+    tag_list_sql = "SELECT id, tag FROM tags WHERE owner='{u}' ORDER BY tag".format(u=username)
+    tag_list_qry = db_qry([tag_list_sql, None], 'select')
+    if not tag_list_qry:
+        return_data += 'select tags query failed:<BR>{s}<BR>'.format(s=tag_list_sql)
+        return return_data
+    if not tag_list_qry[0]:
+        return_data += '''<BR><span class="huge">&nbsp;You do not have any tags to edit at this time.  
+                          Try <A HREF="{u}add">adding</a> a bookmark to create new tags</span><BR><BR><BR>'''.format(u=base_url)
+        return return_data
+    return_data += '''<BR><span class="huge">Edit the tags that you wish to rename, or check the tags that you wish to delete:</span>
+                        <FORM method="POST" action="{u}edit_tags" id="edit_tags">
+		                <span class="normal">&nbsp;Toggle all&nbsp;</span>
+                        <INPUT TYPE="checkbox" onclick="toggle('chkbox1')"><BR><BR>
+		                <CENTER><div id="chkbox1"><TABLE><TR>'''.format(u=base_url)
+    row_counter = 0
+    max_tags_row = 4
+    for row in tag_list_qry:
+        tag_id = row[0]
+        tag = row[1]
+        return_data += '''<TD><INPUT type="checkbox" id="{i}" name="taglist[]" value="{i}" >&nbsp;<span class="big">
+                              <INPUT TYPE="text" NAME="tagname[{i}]" id="tag" size="15" VALUE="{t}"></span>
+                              &nbsp;&nbsp;&nbsp;<BR>&nbsp;</TD>'''.format(i=tag_id, t=tag)
+        row_counter += 1
+        if row_counter > max_tags_row:
+            return_data += '</TR><TR>'
+            row_counter = 0
+    return_data += '''</TR></TABLE></DIV><INPUT type="submit" name="submit" value="DELETE" />
+                      &nbsp;&nbsp;<INPUT name="submit" type="submit" value="RENAME" />
+                      </CENTER></FORM><BR><BR>'''
+    return return_data
+
+
 def show_bmarklet(base_url):
     """Render bookmarklet content."""
     return_data = ''
@@ -693,6 +739,7 @@ def account_mgmt():
         password = ''
         name = ''
         email = ''
+        fullname = ''
         username = auth['username']
         return_data += '<span class="huge"><B>Tasti Account Management</B></span><BR><BR>'
         account_sql = 'UPDATE users SET '
@@ -734,7 +781,7 @@ def account_mgmt():
         elif script == 'bmarklet':
             return_data += show_bmarklet(base_url)
         elif script == 'edit_tags':
-            return_data += edit_tags()
+            return_data += edit_tags(base_url, username)
         else:
             return_data += '<BR>Unknown function<BR><BR>'
     else:
