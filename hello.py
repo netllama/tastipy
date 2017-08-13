@@ -6,6 +6,7 @@ from add import add_tags
 from bmarklet import get_bmarklet
 from account import get_account
 from edit_tags import get_edit_tags
+from importbm import get_import_bm
 #account, add, edit, importbm, login
 
 @route('/')
@@ -42,9 +43,10 @@ def bmarks():
     return_data = get_edit_tags()
     return return_data
 
-@route('/import')
+@route('/import', method=['GET', 'POST'])
 def bmarks():
-    return 'import'
+    return_data = get_import_bm()
+    return return_data
 
 @route('/login')
 def bmarks():

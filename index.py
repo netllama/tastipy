@@ -6,6 +6,7 @@ import psycopg2
 import psycopg2.extras
 from bottle import route, request, get, post, response
 from math import ceil
+from bs4 import BeautifulSoup
 import hashlib
 from urlparse import parse_qs
 
@@ -569,15 +570,18 @@ def add_bmark_form(base_url, username):
     return return_data
 
 
-def add_bmark_db(username):
+def add_bmark_db(username, bmark_tags_list=[''],
+                 bmark_note='', bmark_name='', bmark_url=''):
     """Insert new bookmark into database."""
     return_data = ''
-    bmark_name = escape(request.forms.get('name'), quote=True)
-    bmark_url = request.forms.get('url')
-    bmark_note = ''
+    if request.forms.get('url'):
+        bmark_url = request.forms.get('url')
+    if request.forms.get('name'):
+        bmark_name = escape(request.forms.get('name'), quote=True)
+    if request.forms.get('notes'):
+        bmark_note = request.forms.get('notes')
     if request.forms.get('notes'):
         bmark_note = escape(request.forms.get('notes').strip(), quote=True)
-    bmark_tags_list = []
     if request.forms.get('tags'):
         # convert space separated tags into unique list
         bmark_tags_list = set(request.forms.get('tags').strip().split(' '))
@@ -600,7 +604,7 @@ def add_bmark_db(username):
         add_bmark_vals = [username, bmark_url, bmark_note, tag, bmark_name]
         add_bmark_qry = db_qry([add_bmark_sql, add_bmark_vals], 'insert')
         if add_bmark_qry:
-            return_data += 'Bookmark <B>( {b} )</B> successfully added!'.format(b=bmark_name)
+            return_data += 'Bookmark <B>( {b} )</B> successfully added!<BR>'.format(b=bmark_name)
         else:
             # insert failed
             return_data += '<span class="bad">Failed to insert new bookmark ({b})<BR>{s}<BR></span>'.format(b=bmark_name,
@@ -727,6 +731,46 @@ def delete_tags(username, form_dict):
             tag_updated = False
     if tag_updated:
         return_data += '<BR>&nbsp;<span class="huge">Tag{s} successfully deleted.</span><BR><BR><BR>'.format(s=tag_plural)
+    return return_data
+
+
+def bmark_import_file(username, base_url, bmark_file_data):
+    """Process bookmark import file."""
+    return_data = ''
+    use_import_tag = ['']
+    if bmark_file_data.content_type != 'text/html':
+        return_data += '<BR>{} detected. Only HTML files are supported.<BR><BR>'.format(bmark_file_data.content_type)
+        return return_data
+    import_tag = request.forms.get('import_tag')
+    if import_tag:
+        use_import_tag = ['imported']
+    bmark_filename = bmark_file_data.filename
+    # parse bookmark data into urls and names
+    soup = BeautifulSoup(bmark_file_data.file.read(), 'lxml')
+    parsed_bmark_file_data = soup.find_all('a')
+    return_data += '<BR><BR>'
+    for bmark_data in parsed_bmark_file_data:
+        # insert new bookmarks from export
+        name = bmark_data.text
+        url = bmark_data.get('href')
+        return_data += add_bmark_db(username, use_import_tag, bmark_name=name, bmark_url=url)
+    return_data += '<BR>'
+    return return_data
+
+
+def bmark_import_form(base_url):
+    """Show bookmark import form."""
+    return_data = ''
+    return_data += '''<div id="content"><span class="big"><B>Tasti</B> currently supports bulk imports via an HTML bookmarks file
+                       (from your web browser export):</span><BR><BR>
+	                   <FORM method="POST" action="{b}import" id="import" enctype="multipart/form-data"><UL>
+	                   <LI>&nbsp;Upload a bookmarks file from your web browser:&nbsp;
+                       <INPUT type="file" name="upload_bmark"><BR>&nbsp;</LI>
+		               <LI>&nbsp;
+                            <label><input type="checkbox" name="import_tag">&nbsp;&nbsp;Add the 'imported' tag to each bookmark</label><BR>&nbsp;</LI> 
+		               </UL><BR><CENTER>
+                       <INPUT type="submit" name="save" value="IMPORT" />
+                       </CENTER></FORM><BR></div>'''.format(b=base_url)
     return return_data
     
 
@@ -865,12 +909,14 @@ def account_mgmt():
         if script == 'account':
             return_data += account_details_form(username, base_url)
         elif script == 'import':
-            if request.method == 'POST' and request.files.get('bmarks_file'):
+            if request.method == 'POST':
+                bmark_file_data = request.files.get('upload_bmark')
+            if request.method == 'POST' and bmark_file_data and bmark_file_data.file:
                 # process file import
-                return_data += bmark_import_file()
+                return_data += bmark_import_file(username, base_url, bmark_file_data)
             else:
                 # show file import form
-                return_data += bmark_import_form()
+                return_data += bmark_import_form(base_url)
         elif script == 'bmarklet':
             return_data += show_bmarklet(base_url)
         elif script == 'edit_tags':
