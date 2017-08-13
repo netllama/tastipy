@@ -640,16 +640,12 @@ def generate_tabs():
                                             t=tag_selected,
                                             c=ie_comment)
     return return_data
+    
 
-
-def tag_rename(username):
+def tag_rename(username, form_dict):
     """Handle tag rename change."""
     return_data = ''
     tag_updated = True
-    body = request.body.read()
-    # clean up POST data into dict
-    form_dict = {k.replace('tagname[', '').replace(']', '').replace('[', ''): v for k, v in parse_qs(body).items()
-                 if k != 'submit'}
     tag_plural = ''
     if 'taglist' in form_dict.keys() and len(form_dict['taglist']) > 1:
         tag_plural = 's'
@@ -691,6 +687,49 @@ def tag_rename(username):
     return return_data
 
 
+def delete_tags(username, form_dict):
+    """Handle tag delete change."""
+    return_data = ''
+    tag_updated = True
+    tag_plural = ''
+    if 'taglist' in form_dict.keys() and len(form_dict['taglist']) > 1:
+        tag_plural = 's'
+    if 'taglist' not in form_dict.keys():
+        return return_data
+    for changed_tag_id in form_dict['taglist']:
+        # get original/old tag name
+        old_tag_name_sql = """SELECT tag FROM tags
+                              WHERE owner='{u}' AND id='{i}'
+                              ORDER BY id LIMIT 1""".format(u=username,
+                                                            i=changed_tag_id)
+        old_tag_name_qry = db_qry([old_tag_name_sql, None], 'select')
+        if not old_tag_name_qry:
+            return_data += 'select old tags query failed:<BR>{s}<BR>'.format(s=old_tag_name_sql)
+            tag_updated = False
+            continue
+        old_tag_name = old_tag_name_qry[0][0]
+
+        # update to new tag
+        bmark_tag_rename_sql = 'UPDATE bmarks SET tag=NULL WHERE owner=%s AND tag=%s'
+        bmark_tag_rename_vals = [username, old_tag_name]
+        bmark_tag_rename_qry = db_qry([bmark_tag_rename_sql, bmark_tag_rename_vals], 'update')
+        if not bmark_tag_rename_qry:
+            return_data += 'bmark_tag_rename_qry query failed:<BR>{s}<BR>'.format(s=bmark_tag_rename_sql)
+            tag_updated = False
+            continue
+
+        # update to tag id/tag association
+        tag_delete_sql = 'DELETE FROM tags WHERE owner=%s AND id=%s'
+        tag_delete_vals = [username, changed_tag_id]
+        tag_delete_qry = db_qry([tag_delete_sql, tag_delete_vals], 'delete')
+        if not tag_delete_qry:
+            return_data += 'tag_delete_qry query failed:<BR>{s}<BR>'.format(s=tag_delete_sql)
+            tag_updated = False
+    if tag_updated:
+        return_data += '<BR>&nbsp;<span class="huge">Tag{s} successfully deleted.</span><BR><BR><BR>'.format(s=tag_plural)
+    return return_data
+    
+
 def account_details_form(username, base_url):
     """Render account details form content."""
     name = ''
@@ -724,14 +763,20 @@ def account_details_form(username, base_url):
 def edit_tags(base_url, username):
     """Render tag edit functionality."""
     return_data = ''
-    if request.method == 'POST' and request.forms.get('taglist') and request.forms.get('submit'):
-        opt_type = request.forms.get('submit')
-        if opt_type == 'DELETE':
-            return_data += delete_tags(request.forms.get('taglist'))
-    elif request.method == 'POST' and request.forms.get('submit'):
-        opt_type = request.forms.get('submit')
-        if opt_type == 'RENAME':
-            return_data += tag_rename(username)
+    if request.method == 'POST' and request.forms.get('submit'):
+        # handle tag delete/rename
+        body = request.body.read()
+        # clean up POST data into dict
+        form_dict = {k.replace('tagname[', '').replace(']', '').replace('[', ''): v for k, v in parse_qs(body).items()
+                     if k != 'submit'}
+        if request.forms.get('submit') == 'DELETE':
+            opt_type = request.forms.get('submit')
+            if opt_type == 'DELETE':
+                return_data += delete_tags(username, form_dict)
+        if request.forms.get('submit') == 'RENAME':
+            opt_type = request.forms.get('submit')
+            if opt_type == 'RENAME':
+                return_data += tag_rename(username, form_dict)
 
     tag_list_sql = "SELECT id, tag FROM tags WHERE owner='{u}' ORDER BY tag".format(u=username)
     tag_list_qry = db_qry([tag_list_sql, None], 'select')
