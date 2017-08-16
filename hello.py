@@ -7,7 +7,8 @@ from bmarklet import get_bmarklet
 from account import get_account
 from edit_tags import get_edit_tags
 from importbm import get_import_bm
-#account, add, edit, importbm, login
+from edit import do_edit
+#account, login
 
 @route('/')
 def myroot():
@@ -34,9 +35,10 @@ def bmarks():
     return_data = get_bmarks()
     return return_data
 
-@route('/edit')
+@route('/edit', method=['GET', 'POST'])
 def bmarks():
-    return 'edit'
+    return_data = do_edit()
+    return return_data
 
 @route('/edit_tags', method=['GET', 'POST'])
 def bmarks():

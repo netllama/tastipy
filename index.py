@@ -570,6 +570,107 @@ def add_bmark_form(base_url, username):
     return return_data
 
 
+def edit_bmarks(base_url):
+    """Edit bookmarks."""
+    return_data = ''
+    auth = auth_check()
+    if request.method == 'GET' and auth['username'] and hash_check() and request.query.get('func'):
+        # display the editing form
+        return_data += edit_bmarks_form(auth['username'], base_url)
+    elif request.method == 'POST' and auth['username'] and request.forms.get('name'):
+        # process the data POST'd from the edit form
+        return_data += edit_bmarks_process(auth['username'])
+    else:
+        return_data += '<span class="bad">Invalid function, or not your bookmark.</span><BR><BR><BR>'
+    return return_data
+
+
+def edit_bmarks_process(username):
+    """process POST'd bookmark edit data."""
+    return_data = ''
+    bmark_id = request.forms.get('id')
+    bmark_name = request.forms.get('name').strip()
+    bmark_url = request.forms.get('url').strip()
+    bmark_notes = ''
+    if request.forms.get('notes'):
+        bmark_notes = request.forms.get('notes').strip()
+    if request.forms.get('tags'):
+        bmark_tags_string = request.forms.get('tags').strip()
+        bmark_tags_list = bmark_tags_string.split(' ')
+    old_bmark_sql = "SELECT created, url, notes, name FROM bmarks WHERE id='{i}' LIMIT 1".format(i=bmark_id)
+    old_bmark_qry = db_qry([old_bmark_sql, None], 'select')
+    if not old_bmark_qry:
+        return_data += '<span class="bad">Old Bmark query FAILED<BR>{}<BR>'.format(old_bmark_sql)
+        return return_data
+    old_created = old_bmark_qry[0][0]
+    old_url = old_bmark_qry[0][1]
+    old_notes = old_bmark_qry[0][2]
+    old_name = old_bmark_qry[0][3]
+    
+    return return_data
+
+
+def edit_bmarks_form(username, base_url):
+    """Bookmark edit form content."""
+    return_data = ''
+    if request.query.get('func') == 'edit' and request.query.get('id'):
+        bmark_id = request.query.get('id').strip()
+        bmarks_sql = "SELECT name, url, notes FROM bmarks WHERE id='{i}' AND owner='{u}' LIMIT 1".format(i=bmark_id,
+                                                                                                         u=username)
+        bmarks_qry = db_qry([bmarks_sql, None], 'select')
+        if not bmarks_qry:
+            return_data += '<span class="bad">Bmarks query FAILED<BR>{}<BR>'.format(bmarks_sql)
+            return return_data
+        name = bmarks_qry[0][0]
+        url = bmarks_qry[0][1]
+        notes = bmarks_qry[0][2]
+        tags_sql = "SELECT tag FROM bmarks WHERE owner='{us}' AND url='{u}' ORDER BY tag".format(us=username,
+                                                                                                 u=url)
+        tags_qry = db_qry([tags_sql, None], 'select')
+        if not tags_qry:
+            return_data += '<span class="bad">tags query FAILED<BR>{}<BR>'.format(tags_sql)
+            return return_data
+        return_data += '''<span class="huge">Edit this bookmark:</span><BR><BR>
+				            <FORM method="POST" action="{b}edit" id="edit_bmark"><TABLE>
+					        <TR><TD>Name/Description*:&nbsp;</TD>
+                            <TD>&nbsp;</TD><TD><INPUT TYPE="text" NAME="name" id="name" size="55" VALUE="{n}"></TD></TR>
+					        <TR><TD>URL*:&nbsp;</TD><TD>&nbsp;</TD>
+                            <TD><INPUT TYPE="text" NAME="url" id="url" size="55" VALUE="{u}"></TD></TR>
+					        <TR><TD>Notes:&nbsp;</TD><TD>&nbsp;</TD>
+                            <TD><INPUT TYPE="text" NAME="notes" id="notes" size="55" VALUE="{no}"></TD></TR>
+					        <TR><TD>Tags:&nbsp;</TD><TD>&nbsp;</TD>
+                            <TD><INPUT TYPE="text" NAME="tags" id="tags" size="55" VALUE="'''.format(b=base_url,
+                                                                                                     n=name,
+                                                                                                     u=url,no=notes)
+        for tag_l in tags_qry:
+            return_data += '{} '.format(tag_l[0])
+        return_data += '''"></TD></TR><TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
+					        <TR><TD>&nbsp;</TD><TD><DIV class="submit">
+                            <INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR></TABLE>
+				            <INPUT type="hidden" id="id" name="id" value="{i}">
+				            </FORM><BR><span class="tiny">&nbsp;* Required field</span>
+                            <BR><BR>'''.format(i=bmark_id)
+        # display a clickable list of the user's tags
+        # that will be added to the Tags form field
+        all_tags_sql = "SELECT tag FROM tags WHERE owner='{u}' ORDER BY tag".format(u=username)
+        all_tags_qry = db_qry([all_tags_sql, None], 'select')
+        if all_tags_qry:
+            return_data += '<span class="big">Click below to add your pre-existing tags to the bookmark above:</span><BR><BR>'
+            row_tag_count = 0
+            max_tags_per_row = 10
+            for tag_l in all_tags_qry:
+                tag = escape((tag_l[0]).strip(), quote=True)
+                return_data += '''<A onclick="document.getElementById('tags').value=document.getElementById('tags').value + ' ' + '{t}';">{t}</a>&nbsp;&nbsp;'''.format(t=tag)
+                row_tag_count += 1
+                if row_tag_count > max_tags_per_row:
+                    return_data += '<BR>'
+                    row_tag_count = 0
+            return_data += '<BR><BR><BR>'
+    else:
+        return_data += '<span class="bad">Invalid function, or not your bookmark.</span><BR><BR><BR>'
+    return return_data
+
+
 def add_bmark_db(username, bmark_tags_list=[''],
                  bmark_note='', bmark_name='', bmark_url=''):
     """Insert new bookmark into database."""

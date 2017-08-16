@@ -31,7 +31,6 @@ def get_bmarks():
     </div>
     <div id="footer">'''
     return_data += footer()
-    #return_data += str(request.environ)
     bottom = '''</div>
     </div>
 </body>
