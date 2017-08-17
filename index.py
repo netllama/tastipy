@@ -178,7 +178,7 @@ def do_tags():
                 last_update = bmark_row[1]
                 owner = bmark_row[2]
                 url = bmark_row[3]
-                notes = bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
+                notes = escape(bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;', "'"), quote=True)
                 name = bmark_row[5].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
                 if notes:
                     notes_string = '<BR><span class="small"><B>{n}</B></span>'.format(n=notes)
@@ -606,7 +606,34 @@ def edit_bmarks_process(username):
     old_url = old_bmark_qry[0][1]
     old_notes = old_bmark_qry[0][2]
     old_name = old_bmark_qry[0][3]
-    
+    bmark_del_sql = 'DELETE FROM bmarks WHERE owner=%s AND url=%s AND name=%s'
+    bmark_del_vals = [username, old_url, old_name]
+    bmark_del_qry = db_qry([bmark_del_sql, bmark_del_vals], 'delete')
+    if not bmark_del_qry:
+        return_data += '<span class="bad">delete Bmark query FAILED<BR>{}<BR>'.format(bmark_del_sql)
+        return return_data
+    for raw_tag in bmark_tags_list:
+        # insert any new tags
+        tag = escape(raw_tag, quote=True)
+        user_has_tag_sql = "SELECT id FROM tags WHERE owner='{u}' AND tag='{t}'".format(u=username,
+                                                                                        t=tag)
+        user_has_tag_qry = db_qry([user_has_tag_sql, None], 'select')
+        if not user_has_tag_qry:
+            # new tag
+            add_user_tag_sql = 'INSERT INTO tags (owner, tag) VALUES (%s, %s)'
+            add_user_tag_vals = [username, tag]
+            add_user_tag_qry = db_qry([add_user_tag_sql, add_user_tag_vals], 'insert')
+            if not add_user_tag_qry:
+                return_data += '<span class="bad">Tag INSERT FAILED: <BR>{}<BR>'.format(add_user_tag_sql)
+                return return_data
+        add_bmark_sql = '''INSERT INTO bmarks (owner, url, notes, tag, name, created)
+                           VALUES (%s, %s, %s, %s, %s, %s)'''
+        add_bmark_vals = [username, bmark_url, bmark_notes, tag, bmark_name, old_created]
+        add_bmark_qry = db_qry([add_bmark_sql, add_bmark_vals], 'insert')
+        if not add_bmark_qry:
+            return_data += '<span class="bad">Bmark INSERT FAILED: <BR>{}<BR>'.format(add_bmark_sql)
+            return return_data
+    return_data += 'Bookmark <B>( {b} )</B> successfully updated!<BR><BR>'.format(b=escape(bmark_name, quote=True))
     return return_data
 
 
