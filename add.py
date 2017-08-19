@@ -3,7 +3,7 @@ from index import header0, do_add, list_tags, footer
 
 
 def add_tags():
-    """Returns bmarks page/index content."""
+    """Returns add bmarks page/index content."""
     base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
                                          sc=request.environ.get('SCRIPT_NAME'))
     return_data = ''
@@ -32,21 +32,21 @@ def add_tags():
 <body><div id="wrapper">
         <div id="header">'''.format(h=base_url)
     return_data += top
-    return_data += header0()
+    return_data += header0(base_url)
     return_data += '''</div>
     <div id="faux">
         <div id="leftcolumn">'''
-    return_data += do_add()
+    return_data += do_add(base_url)
     return_data += '''<div class="clear"></div>
         </div>
         <div id="rightcolumn">
                 '''
-    return_data += list_tags()
+    return_data += list_tags(base_url)
     return_data += '''<div class="clear"></div>
         </div>
     </div>
     <div id="footer">'''
-    return_data += footer()
+    return_data += footer(base_url)
     bottom = '''</div>
     </div>
 </body>

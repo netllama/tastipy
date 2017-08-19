@@ -15,7 +15,8 @@ CONN_STRING = 'host=127.0.0.1 dbname=tasti user=tasti password="" port=5432'
 
 def get_index():
     """Returns main page/index content."""
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
+    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
+                                         sc=request.environ.get('SCRIPT_NAME'))
     return_data = ''
     top = '''<html lang="en">
 <head>
@@ -26,21 +27,21 @@ def get_index():
 <body><div id="wrapper">
         <div id="header">'''.format(h=base_url)
     return_data += top
-    return_data += header0()
+    return_data += header0(base_url)
     return_data += '''</div>
     <div id="faux">
         <div id="leftcolumn">'''
-    return_data += do_bmarks()
+    return_data += do_bmarks(base_url)
     return_data += '''<div class="clear"></div>
         </div>
         <div id="rightcolumn">
                 '''
-    return_data += list_tags()
+    return_data += list_tags(base_url)
     return_data += '''<div class="clear"></div>
         </div>
     </div>
     <div id="footer">'''
-    return_data += footer()
+    return_data += footer(base_url)
 
     bottom = '''</div>
     </div>
@@ -51,10 +52,8 @@ def get_index():
     return return_data
 
 
-def header0():
+def header0(base_url):
     """Header content."""
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
-                                         sc=request.environ.get('SCRIPT_NAME'))
     auth_payload = auth_check()
     if auth_payload['is_authenticated']:
         header_string = '''&nbsp;Hi <A HREF="{h}account">{u}</a>&nbsp;|&nbsp;<A HREF="{h}login?do=1">Logout</a><BR><BR>
@@ -72,10 +71,8 @@ def header0():
     return return_data
 
 
-def do_tags():
+def do_tags(base_url):
     """Show bookmarks associated with a tag."""
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
-                                         sc=request.environ.get('SCRIPT_NAME'))
     user_num_bmarks = 15
     num_bmarks_menu_offset = 53
     return_data = ''
@@ -232,7 +229,7 @@ def do_tags():
     return return_data
 
 
-def do_bmarks():
+def do_bmarks(base_url):
     """Bookmark content."""
     return_data = ''
     auth = auth_check()
@@ -263,18 +260,17 @@ def do_bmarks():
             	return_data += '''<span class="huge">Bookmark ( {o} ) successfully deleted</span>
                                   <BR><BR>'''.format(o=old_name)
     else:
-    	return_data += show_bmarks()
+    	return_data += show_bmarks(base_url)
     return return_data
 
 
-def list_tags():
+def list_tags(base_url):
     """List tags.
 
 	only the user's, if logged in,
     most recently added otherwise
     """
     return_data = ''
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
     auth = auth_check()
     tags_sql_base = 'SELECT id, tag FROM tags '
     if auth['is_authenticated'] and auth['username']:
@@ -318,9 +314,8 @@ def get_markers(user_num_bmarks):
     return marker_dict
 
 
-def show_bmarks():
+def show_bmarks(base_url):
     """Show bookmarks."""
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
     user_num_bmarks = 15
     mine = 'mine'
     whose = ''
@@ -345,7 +340,7 @@ def show_bmarks():
     # Calculate the offset
     from_offset = (int(page) * int(max_results)) - int(max_results)
     url_get_base = '{h}bmarks?{u}'.format(h=base_url,
-                                   u=request.environ.get('QUERY_STRING'))
+                                          u=request.environ.get('QUERY_STRING'))
     bmarks_sql_base = '''SELECT distinct ON (url) url, id, date(last_update) AS last_update, notes, name, owner
                         FROM bmarks'''
     if hash_check():
@@ -493,17 +488,16 @@ def show_bmarks():
     return return_data
 
 
-def do_add():
+def do_add(base_url):
     """Add new bookmark content."""
     return_data = ''
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
-                                         sc=request.environ.get('SCRIPT_NAME'))
     auth_payload = auth_check()
     if auth_payload['is_authenticated'] and hash_check():
         username = request.get_cookie('tasti_username').lower()
         if request.method == 'POST' and request.forms.get('url'):
             return_data += add_bmark_db(username)
-        return_data += add_bmark_form(base_url, request.get_cookie('tasti_username').lower())
+        return_data += add_bmark_form(base_url,
+                                      request.get_cookie('tasti_username').lower())
     else:
         return_data += '''Only users who have <A HREF="{h}login?do=0">logged in</a>
                           may add new bookmarks.<BR>'''.format(h=base_url)
@@ -740,7 +734,7 @@ def add_bmark_db(username, bmark_tags_list=[''],
     return return_data
 
 
-def generate_tabs():
+def generate_tabs(base_url):
     """Generate tab content structure."""
     return_data = ''
     account_selected = ''
@@ -748,8 +742,6 @@ def generate_tabs():
     bmarklet_selected = ''
     tag_selected = ''
     ie_comment = 'these comments between lis solve a bug in IE that prevents spaces appearing between list items that appear on different lines in the source'
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
-                                         sc=request.environ.get('SCRIPT_NAME'))
     selected = 'id="selected"'
     script = request.environ.get('SCRIPT_URL').split('/')[-1]
     if script == 'account':
@@ -995,10 +987,9 @@ def show_bmarklet(base_url):
     return return_data
 
 
-def account_mgmt():
+def account_mgmt(base_url):
     """Render account management content."""
     return_data = ''
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
     auth = auth_check()
     if auth['username'] and hash_check():
         password = ''
@@ -1033,7 +1024,7 @@ def account_mgmt():
                     return_data += '<span class="big"><B><i>Update Successful</i></B></span><BR><BR>'
         # generate tab UI
         script = request.environ.get('SCRIPT_URL').split('/')[-1]
-        return_data += generate_tabs()
+        return_data += generate_tabs(base_url)
         if script == 'account':
             return_data += account_details_form(username, base_url)
         elif script == 'import':
@@ -1057,10 +1048,64 @@ def account_mgmt():
     return return_data
 
 
-def footer():
+def login_form():
+    """Generate login form content."""
+    return_data = '''<BR><span class="huge">Enter your <B>Tasti</B> username and password to login</span><BR><BR>
+                    <FORM method="POST" action="login" id="login"><TABLE>
+            		<TR><TD>Username &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="text" NAME="username" id="username" /></TD></TR>
+		            <TR><TD>Password &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="password" NAME="password" id="password" /></TD></TR>
+		            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
+                    <TR><TD>&nbsp;</TD><TD><DIV class="submit"><INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
+		            </TABLE></FORM><BR><BR>'''
+    return return_data
+
+
+def login():
+    """Base login handler."""
+    return_data = ''
+    auth_payload = auth_check()
+    bmarks_per_page = 10
+    login_success_str = '<BR>Congratulations, you have successfully logged in.<BR><BR>'
+    if request.get_cookie('tasti_bmarks_per_page'):
+        bmarks_per_page = request.get_cookie('tasti_bmarks_per_page')
+    if not auth_payload['is_authenticated'] and request.method == 'POST' and request.forms.get('username') and request.forms.get('password'):
+        # not authenticated yet, attempting to auth
+        username = request.forms.get('username').strip().lower()
+        password = hashlib.sha1(request.forms.get('password').strip()).hexdigest()
+        is_authenticated_sql = "SELECT id FROM users WHERE username='{u}' AND password='{p}'".format(u=username,
+                                                                                                     p=password)
+        is_authenticated_qry = db_qry([is_authenticated_sql, None], 'select')
+        if is_authenticated_qry:
+            days_expire = 30
+            cookie_exp = datetime.datetime.now() + datetime.timedelta(days=days_expire)
+            response.set_cookie('tasti_username', username, expires=cookie_exp)
+            response.set_cookie('tasti_hash', password, expires=cookie_exp)
+            response.set_cookie('tasti_bmarks_per_page', bmarks_per_page, expires=cookie_exp)
+            return_data += login_success_str
+        else:
+            return_data += '<span class="bad">Login failed<BR><BR>'
+            return_data += login_form()
+    elif auth_payload['is_authenticated']:
+        # already authenticated
+        if request.method == 'GET' and request.query.get('do') and request.query.get('do') == '1':
+            # logout
+            days_expire = -1
+            cookie_exp = datetime.datetime.now() + datetime.timedelta(days=days_expire)
+            response.set_cookie('tasti_username', auth_payload['username'], expires=cookie_exp)
+            response.set_cookie('tasti_hash', request.get_cookie('tasti_hash'), expires=cookie_exp)
+            response.set_cookie('tasti_bmarks_per_page', bmarks_per_page, expires=cookie_exp)
+            return_data += '<BR>You have been logged out.<BR><BR>'
+            return_data += login_form()
+        else:
+            return_data += login_success_str
+    else:
+        return_data += login_form()
+    return return_data
+
+
+def footer(base_url):
     """Footer content."""
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'), sc=request.environ.get('SCRIPT_NAME'))
-    year = year = datetime.date.today().year
+    year = datetime.date.today().year
     return_data = '''<span class="footer_class1">
 <CENTER><A HREF="{h}">HOME</a>&nbsp;<BR><A HREF="https://github.com/netllama/tastipy">Tasti</a> is licensed under the <A HREF="http://www.gnu.org/licenses/gpl.html">GPL</a>.  Copyright {y}<BR>
 </CENTER></span>'''.format(y=year, h=base_url)
@@ -1090,6 +1135,8 @@ def hash_check():
     hash_qry = db_qry([hash_sql, None], 'select')
     if len(hash_qry) and hash_qry[0]:
         return hash_qry
+    else:
+        return None
 
 
 def db_qry(sql_pl, operation):

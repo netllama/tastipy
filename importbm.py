@@ -16,21 +16,21 @@ def get_import_bm():
 <body><div id="wrapper">
         <div id="header">'''.format(h=base_url)
     return_data += top
-    return_data += header0()
+    return_data += header0(base_url)
     return_data += '''</div>
     <div id="faux">
         <div id="leftcolumn">'''
-    return_data += account_mgmt()
+    return_data += account_mgmt(base_url)
     return_data += '''<div class="clear"></div>
         </div>
         <div id="rightcolumn">
                 '''
-    return_data += list_tags()
+    return_data += list_tags(base_url)
     return_data += '''<div class="clear"></div>
         </div>
     </div>
     <div id="footer">'''
-    return_data += footer()
+    return_data += footer(base_url)
     bottom = '''</div>
     </div>
 </body>
