@@ -9,7 +9,7 @@ from edit_tags import get_edit_tags
 from importbm import get_import_bm
 from edit import do_edit
 from login import do_login
-#account
+from register import do_register
 
 @route('/')
 def myroot():
@@ -56,9 +56,10 @@ def bmarks():
     return_data = do_login()
     return return_data
 
-@route('/register')
+@route('/register', method=['GET', 'POST'])
 def bmarks():
-    return 'register'
+    return_data = do_register()
+    return return_data
 
 @route('/tags')
 def bmarks():

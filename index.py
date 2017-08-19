@@ -279,7 +279,7 @@ def list_tags(base_url):
 		tags_sql = "{s} ORDER BY last_update, tag LIMIT 50".format(s=tags_sql_base)
     tags_qry_res = db_qry([tags_sql, None], 'select')
     if not tags_qry_res:
-    	return_data += '<span class="bad">Tags query FAILED<BR>'
+    	return_data += '<span class="bad">You have 0 tags<BR>'
         return return_data
     else:
     	if auth['username']:
@@ -1048,26 +1048,120 @@ def account_mgmt(base_url):
     return return_data
 
 
-def login_form():
+def login_form(base_url):
     """Generate login form content."""
     return_data = '''<BR><span class="huge">Enter your <B>Tasti</B> username and password to login</span><BR><BR>
-                    <FORM method="POST" action="login" id="login"><TABLE>
+                    <FORM method="POST" action="{u}login?do=0" id="login"><TABLE>
             		<TR><TD>Username &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="text" NAME="username" id="username" /></TD></TR>
 		            <TR><TD>Password &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="password" NAME="password" id="password" /></TD></TR>
 		            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
                     <TR><TD>&nbsp;</TD><TD><DIV class="submit"><INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
-		            </TABLE></FORM><BR><BR>'''
+		            </TABLE></FORM><BR><BR>'''.format(u=base_url)
     return return_data
 
 
-def login():
+def register_form(base_url):
+    """Registration form."""
+    return_data = '''<span class="big">Please complete the form to register a new <B>Tasti</B> account:</span><BR><BR>
+                    <FORM method="POST" action="{u}register" id="register"><TABLE><TR>
+		            <TD><label for="username">Username (at least 5 characters)*:&nbsp;</label></TD><TD>&nbsp;</TD>
+                    <TD><INPUT TYPE="text" NAME="username" id="username" /></TD></TR>
+		            <TR><TD><label for="password0">Password (at least 6 characters)*:&nbsp;</label></TD><TD>&nbsp;</TD>
+                    <TD><INPUT NAME="password0" TYPE="text" id="password0" /></TD></TR>
+		            <TR><TD><label for="password1">Enter the same password again*:&nbsp;</label></TD><TD>&nbsp;</TD>
+                    <TD><INPUT NAME="password1" TYPE="text" id="password1" /></TD></TR>
+		            <TR><TD><label for="fullname">Enter your full name:&nbsp;</label></TD><TD>&nbsp;</TD>
+                    <TD><INPUT NAME="fullname" TYPE="text" id="fullname" /></TD></TR>
+		            <TR><TD><label for="email">Enter your email address*:&nbsp;</label></TD><TD>&nbsp;</TD>
+                    <TD><INPUT NAME="email" TYPE="text" id="email" /></TD></TR>
+		            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
+		            <TR><TD>&nbsp;</TD><TD><DIV class="submit"><INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
+		            </TABLE></FORM><BR>
+                    <span class="tiny">&nbsp;&nbsp;* Required field&nbsp;</span><BR>'''.format(u=base_url)
+    return return_data
+
+
+def register(base_url):
+    """Account registration content."""
+    return_data = ''
+    auth_payload = auth_check()
+    if auth_payload['is_authenticated']:
+        # already registered/logged in
+        return_data += '''You are already logged in (and registered) as <B>{u}</B>.<BR><BR>
+                            Please <A HREF="{b}login?do=1">logout</a> if you wish to register a new account.
+                            <BR><BR>THANKS!'''.format(u=auth_payload['username'],
+                                                      b=base_url)
+    elif request.method == 'POST' and request.forms.get('username') and request.forms.get('password0') and\
+         request.forms.get('password1') and request.forms.get('email'):
+        reg_fail_reasons = []
+        fail_template = '<span class="bad">{t}</span><BR><BR>'
+        min_passwd_length = 6
+        min_user_length = 5
+        username = escape(request.forms.get('username').strip().lower(), quote=True)
+        full_name = escape(request.forms.get('fullname').strip(), quote=True)
+        email = request.forms.get('email').strip().lower()
+        password0 = request.forms.get('password0').strip()
+        password1 = request.forms.get('password1').strip()
+        # validate submitted values
+        if password0 != password1:
+            reason_str = 'Passwords do not match ( {} <> {} )'.format(password0, password1)
+            fail_reason = fail_template.format(t=reason_str)
+            reg_fail_reasons.append(fail_reason)
+        if len(password0) < min_passwd_length:
+            reason_str = 'Password ({}) is too short, must be at least {} character'.format(password0,
+                                                                                            min_passwd_length)
+            fail_reason = fail_template.format(t=reason_str)
+            reg_fail_reasons.append(fail_reason)
+        if len(username) < min_user_length:
+            reason_str = 'Username ({}) is too short, must be at least {} character'.format(username,
+                                                                                            min_user_length)
+            fail_reason = fail_template.format(t=reason_str)
+            reg_fail_reasons.append(fail_reason)
+        if username == password0:
+            reason_str = 'Username ( {} ) and password ( {} ) must be different'.format(username,
+                                                                                        password0)
+            fail_reason = fail_template.format(t=reason_str)
+            reg_fail_reasons.append(fail_reason)
+        user_exists_sql = "SELECT username FROM users WHERE username='{u}'".format(u=username)
+        user_exists_qry = db_qry([user_exists_sql, None], 'select')
+        if user_exists_qry and user_exists_qry[0]:
+            reason_str = 'Username ( {} ) is already registered, please choose a different username.'.format(username)
+            fail_reason = fail_template.format(t=reason_str)
+            reg_fail_reasons.append(fail_reason)
+        if reg_fail_reasons:
+            # failure from above
+            for failure in reg_fail_reasons:
+                return_data += failure
+            return_data += register_form(base_url)
+            return return_data
+        # all checks passed, process submitted data
+        encr_passwd = hashlib.sha1(request.forms.get('password0').strip()).hexdigest()
+        add_user_sql = 'INSERT INTO users (username, password, name, email) VALUES (%s, %s, %s, %s)'
+        add_user_vals = [username, encr_passwd, full_name, email]
+        add_user_qry = db_qry([add_user_sql, add_user_vals], 'insert')
+        if not add_user_qry:
+            return_data += '<span class="bad">Username creation FAILED.</span><BR>{}<BR>'.format(add_user_sql)
+            return_data += register_form(base_url)
+            return return_data
+        # success
+        return_data += '''Your account ( {u} ) has been successfully created. 
+                            You may now login below or <A HREF="{h}login?do=0">HERE</a>.
+                            <BR><BR>'''.format(u=username, h=base_url)
+        return_data += login_form(base_url)
+    else:
+        # show registration form content
+        return_data += register_form(base_url)
+    return return_data
+
+
+def login(base_url):
     """Base login handler."""
     return_data = ''
     auth_payload = auth_check()
     bmarks_per_page = 10
     login_success_str = '<BR>Congratulations, you have successfully logged in.<BR><BR>'
     if request.get_cookie('tasti_bmarks_per_page'):
-        bmarks_per_page = request.get_cookie('tasti_bmarks_per_page')
+        bmarks_per_page = int(request.get_cookie('tasti_bmarks_per_page'))
     if not auth_payload['is_authenticated'] and request.method == 'POST' and request.forms.get('username') and request.forms.get('password'):
         # not authenticated yet, attempting to auth
         username = request.forms.get('username').strip().lower()
@@ -1080,7 +1174,7 @@ def login():
             cookie_exp = datetime.datetime.now() + datetime.timedelta(days=days_expire)
             response.set_cookie('tasti_username', username, expires=cookie_exp)
             response.set_cookie('tasti_hash', password, expires=cookie_exp)
-            response.set_cookie('tasti_bmarks_per_page', bmarks_per_page, expires=cookie_exp)
+            response.set_cookie('tasti_bmarks_per_page', str(bmarks_per_page), expires=cookie_exp)
             return_data += login_success_str
         else:
             return_data += '<span class="bad">Login failed<BR><BR>'
@@ -1093,13 +1187,13 @@ def login():
             cookie_exp = datetime.datetime.now() + datetime.timedelta(days=days_expire)
             response.set_cookie('tasti_username', auth_payload['username'], expires=cookie_exp)
             response.set_cookie('tasti_hash', request.get_cookie('tasti_hash'), expires=cookie_exp)
-            response.set_cookie('tasti_bmarks_per_page', bmarks_per_page, expires=cookie_exp)
+            response.set_cookie('tasti_bmarks_per_page', str(bmarks_per_page), expires=cookie_exp)
             return_data += '<BR>You have been logged out.<BR><BR>'
-            return_data += login_form()
+            return_data += login_form(base_url)
         else:
             return_data += login_success_str
     else:
-        return_data += login_form()
+        return_data += login_form(base_url)
     return return_data
 
 
