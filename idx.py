@@ -4,6 +4,6 @@ from os import chdir, path
 chdir(path.dirname(__file__))
 
 import bottle
-import hello
+import tastiapp
 
 application = bottle.default_app()

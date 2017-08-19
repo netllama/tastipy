@@ -81,14 +81,6 @@ def send_js(filename):
 def send_img(filename):
     return static_file(filename, root='/var/www/tasti/images')
 
-@route('/hello')
-def hello():
-    return '<H2>Hello World!<BR><BR><A HREF="https://google.com">Up</a>'
-
-@route('/hello/<name>')
-def idx(name='Stranger'):
-    return template('<b>Hello {{name}}</b>!', name=name)
-
 @error(404)
 def handle404(error):
     return '<H1>Ooops, its not here<BR>'
