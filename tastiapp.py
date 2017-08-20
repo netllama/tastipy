@@ -16,7 +16,7 @@ def myroot():
     return_data = get_index()
     return return_data
 
-@route('/account')
+@route('/account', method=['GET', 'POST'])
 def bmarks():
     return_data = get_bmarklet()
     return return_data
@@ -65,21 +65,21 @@ def bmarks():
 def bmarks():
     return_data = get_tags()
     return return_data
-	
+
 # serve css
-@route('/css/<filename:path>')
+@get('/<filename:re:.*\.css>')
 def send_css(filename):
-    return static_file(filename, root='/var/www/tasti/css')
+    return static_file(filename, root='css')
 
 # serve javascript
-@route('/js/<filename:re:.*\.js>')
+@get('/<filename:re:.*\.js>')
 def send_js(filename):
-    return static_file(filename, root='/var/www/tasti/js')
+    return static_file(filename, root='js')
 
 # serve images
-@route('/images/<filename:re:.*\.png>')
+@get('<filename:re:.*\.png>')
 def send_img(filename):
-    return static_file(filename, root='/var/www/tasti/images')
+    return static_file(filename, root='images')
 
 @error(404)
 def handle404(error):

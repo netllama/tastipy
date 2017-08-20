@@ -15,33 +15,31 @@ CONN_STRING = 'host=127.0.0.1 dbname=tasti user=tasti password="" port=5432'
 
 def get_index():
     """Returns main page/index content."""
-    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
-                                         sc=request.environ.get('SCRIPT_NAME'))
     return_data = ''
     top = '''<html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Tasti</title>
-    <link rel="stylesheet" type="text/css" href="{h}css/main.css" />
+    <link rel="stylesheet" type="text/css" href="main.css" />
 </head>
 <body><div id="wrapper">
-        <div id="header">'''.format(h=base_url)
+        <div id="header">'''
     return_data += top
-    return_data += header0(base_url)
+    return_data += header0()
     return_data += '''</div>
     <div id="faux">
         <div id="leftcolumn">'''
-    return_data += do_bmarks(base_url)
+    return_data += do_bmarks()
     return_data += '''<div class="clear"></div>
         </div>
         <div id="rightcolumn">
                 '''
-    return_data += list_tags(base_url)
+    return_data += list_tags()
     return_data += '''<div class="clear"></div>
         </div>
     </div>
     <div id="footer">'''
-    return_data += footer(base_url)
+    return_data += footer()
 
     bottom = '''</div>
     </div>
@@ -52,26 +50,24 @@ def get_index():
     return return_data
 
 
-def header0(base_url):
+def header0():
     """Header content."""
     auth_payload = auth_check()
     if auth_payload['is_authenticated']:
-        header_string = '''&nbsp;Hi <A HREF="{h}account">{u}</a>&nbsp;|&nbsp;<A HREF="{h}login?do=1">Logout</a><BR><BR>
-                           <UL><LI><A HREF="{h}add">ADD</a>&nbsp;a&nbsp;bookmark<LI>
-                           <A HREF="{h}bmarks?whose=mine">MY BOOKMARKS</a></UL>'''.format(h=base_url,
-                                                                                          u=auth_payload['username'])
+        header_string = '''&nbsp;Hi <A HREF="account">{u}</a>&nbsp;|&nbsp;<A HREF="login?do=1">Logout</a><BR><BR>
+                           <UL><LI><A HREF="add">ADD</a>&nbsp;a&nbsp;bookmark<LI>
+                           <A HREF="bmarks?whose=mine">MY BOOKMARKS</a></UL>'''.format(u=auth_payload['username'])
     else:
-        header_string = '''&nbsp;<A HREF="{h}login?do=0">Login</a>
-                           &nbsp;|&nbsp;<A HREF="{h}register">Register</a>&nbsp;'''.format(h=base_url)
+        header_string = '''&nbsp;<A HREF="login?do=0">Login</a>
+                           &nbsp;|&nbsp;<A HREF="register">Register</a>&nbsp;'''
     return_data = '''<span class="header_class1"><TABLE width="100%"><TR>
-    <TD><A HREF="{h}"><IMG SRC="{h}images/tasti-logo.png"></a></TD>
+    <TD><A HREF=""><IMG SRC="tasti-logo.png"></a></TD>
     <TD>&nbsp;</TD><TD align="right" valign="top">{header}</TD>
-    </TR></TABLE></span>'''.format(header=header_string,
-                                   h=base_url)
+    </TR></TABLE></span>'''.format(header=header_string)
     return return_data
 
 
-def do_tags(base_url):
+def do_tags():
     """Show bookmarks associated with a tag."""
     user_num_bmarks = 15
     num_bmarks_menu_offset = 53
@@ -125,8 +121,7 @@ def do_tags(base_url):
         max_results = user_num_bmarks
         # Calculate the offset
         from_offset = (int(page) * int(max_results)) - int(max_results)
-        url_get_base = '{h}tags?{u}'.format(h=base_url,
-                                            u=request.environ.get('QUERY_STRING'))
+        url_get_base = 'tags?{u}'.format(u=request.environ.get('QUERY_STRING'))
         tag = tags[0]
         bmarks_sql_base = "SELECT id, date(last_update) as last_update, owner, url, notes, name FROM bmarks WHERE tag='{t}' ".format(t=tag)
         if username and request.query.get('mine') and request.query.get('mine') == 'yes':
@@ -181,12 +176,10 @@ def do_tags(base_url):
                     notes_string = '<BR><span class="small"><B>{n}</B></span>'.format(n=notes)
                 if hash_check() and owner == username:
                     bmark_user_edit_string = '''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
-                                                &nbsp;|&nbsp;<A HREF="{h}bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'''.format(i=bm_id,
-                                                                                                                                          h=base_url)
+                                                &nbsp;|&nbsp;<A HREF="bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'''.format(i=bm_id)
                 else:
-                    bmark_user_edit_string = '''<BR><span class="normal">Created by <A HREF="{h}bmarks?whose={o}">
-                                                <B>{o}</B></a>&nbsp;</span>'''.format(o=owner,
-                                                                                      h=base_url)
+                    bmark_user_edit_string = '''<BR><span class="normal">Created by <A HREF="bmarks?whose={o}">
+                                                <B>{o}</B></a>&nbsp;</span>'''.format(o=owner)
                 return_data += '''<TABLE><TR>
                                     <TD valign="top" width="95"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
                                     <TD><span class="big"><A HREF="{u}">{n}</a></span>{no}{b}</TD>
@@ -200,17 +193,16 @@ def do_tags(base_url):
 
             # Create a PREV link if one is needed
             if page > 1:
-                pagination += '''<A STYLE="text-decoration:none" title="PREVIOUS PAGE" HREF="{h}tags?{m}&page={p}&num={u}{t}">
+                pagination += '''<A STYLE="text-decoration:none" title="PREVIOUS PAGE" HREF="tags?{m}&page={p}&num={u}{t}">
                                  <span class="huge"><H1>&larr;</H1></span></A>'''.format(m=mine,
                                                                                          p=prev,
                                                                                          u=user_num_bmarks,
-                                                                                         h=base_url,
                                                                                          t=tag_get)
             # Create a NEXT link if one is needed
             if page < total_pages:
-                pagination += '''<A STYLE="text-decoration:none" title="NEXT PAGE" HREF="{h}tags?{m}&page={n}&num={u}{t}">
+                pagination += '''<A STYLE="text-decoration:none" title="NEXT PAGE" HREF="tags?{m}&page={n}&num={u}{t}">
                                  <span class="huge"><H1>&rarr;</H1></span></A>'''.format(m=mine, n=next, u=user_num_bmarks,
-                                                                                         h=base_url, t=tag_get)
+                                                                                         t=tag_get)
             else:
                 # adjust the total count when on the last page since
                 # it might not have user_num_bmarks items remaining
@@ -229,7 +221,7 @@ def do_tags(base_url):
     return return_data
 
 
-def do_bmarks(base_url):
+def do_bmarks():
     """Bookmark content."""
     return_data = ''
     auth = auth_check()
@@ -260,11 +252,11 @@ def do_bmarks(base_url):
             	return_data += '''<span class="huge">Bookmark ( {o} ) successfully deleted</span>
                                   <BR><BR>'''.format(o=old_name)
     else:
-    	return_data += show_bmarks(base_url)
+    	return_data += show_bmarks()
     return return_data
 
 
-def list_tags(base_url):
+def list_tags():
     """List tags.
 
 	only the user's, if logged in,
@@ -294,10 +286,9 @@ def list_tags(base_url):
             for tag_list in tags_qry_res:
             	tag_id = tag_list[0]
                 tag = tag_list[1]
-            	return_data += '&nbsp;&nbsp;<A HREF="{h}tags?id={i}{sh}">{t}</a>&nbsp;<BR>'.format(i=tag_id,
+            	return_data += '&nbsp;&nbsp;<A HREF="tags?id={i}{sh}">{t}</a>&nbsp;<BR>'.format(i=tag_id,
                                                                                                 sh=show_mine,
-                                                                                                t=tag,
-                                                                                                h=base_url)
+                                                                                                t=tag)
         return_data += '<BR>'
     return return_data
 
@@ -314,7 +305,7 @@ def get_markers(user_num_bmarks):
     return marker_dict
 
 
-def show_bmarks(base_url):
+def show_bmarks():
     """Show bookmarks."""
     user_num_bmarks = 15
     mine = 'mine'
@@ -339,8 +330,7 @@ def show_bmarks(base_url):
     max_results = user_num_bmarks
     # Calculate the offset
     from_offset = (int(page) * int(max_results)) - int(max_results)
-    url_get_base = '{h}bmarks?{u}'.format(h=base_url,
-                                          u=request.environ.get('QUERY_STRING'))
+    url_get_base = 'bmarks?{u}'.format(u=request.environ.get('QUERY_STRING'))
     bmarks_sql_base = '''SELECT distinct ON (url) url, id, date(last_update) AS last_update, notes, name, owner
                         FROM bmarks'''
     if hash_check():
@@ -369,7 +359,7 @@ def show_bmarks(base_url):
                                              o=from_offset)
     bmarks_qry = db_qry([bmarks_sql, None], 'select')
     if not bmarks_qry:
-        return_data += '<span class="bad">Bmarks query FAILED:<BR>{}<BR>'.format(bmarks_sql)
+        return_data += '<span class="bad">No bookmarks found<BR>'
         return return_data
     bmarks_qry_all_res = db_qry([bmarks_sql_all, None], 'select')
     if not bmarks_qry_all_res:
@@ -409,12 +399,10 @@ def show_bmarks(base_url):
             if hash_check() and request.query.get('whose') and request.query.get('whose') == mine:
                 tags_sql += "AND owner='{u}' ".format(u=username)
                 bmark_user_edit_string = '''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
-                                            &nbsp;|&nbsp;<A HREF="{h}bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'''.format(i=bm_id,
-                                                                                                                                      h=base_url)
+                                            &nbsp;|&nbsp;<A HREF="bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'''.format(i=bm_id)
             else:
-                bmark_user_edit_string = '''<BR><span class="normal">Created by <A HREF="{h}bmarks?whose={o}">
-                                            <B>{o}</B></a>&nbsp;</span>'''.format(o=owner,
-                                                                                  h=base_url)
+                bmark_user_edit_string = '''<BR><span class="normal">Created by <A HREF="bmarks?whose={o}">
+                                            <B>{o}</B></a>&nbsp;</span>'''.format(o=owner)
             tags_sql += 'AND length(tag)>0 GROUP BY tag ORDER BY tag LIMIT 15'
             tags_qry = db_qry([tags_sql, None], 'select')
             if notes:
@@ -441,9 +429,8 @@ def show_bmarks(base_url):
                         return_data += '<span class="bad">Tags query FAILED:<BR>{}<BR>'.format(tag_sql)
                         return return_data
                     tag_id = tag_qry_res[0][0]
-                    return_data += '<A HREF="{h}tags?id={tid}">{t}</a>&nbsp;&nbsp;'.format(tid=tag_id,
-                                                                                           t=tag,
-                                                                                           h=base_url)
+                    return_data += '<A HREF="tags?id={tid}">{t}</a>&nbsp;&nbsp;'.format(tid=tag_id,
+                                                                                           t=tag)
                     tag_counter += 1
                     if tag_counter > 4:
                         tag_counter = 0
@@ -457,19 +444,17 @@ def show_bmarks(base_url):
 
         # Create a PREV link if one is needed
         if page > 1:
-            pagination += '''<A STYLE="text-decoration:none" title="PREVIOUS PAGE" HREF="{h}bmarks?whose={w}&page={p}&num={u}">
+            pagination += '''<A STYLE="text-decoration:none" title="PREVIOUS PAGE" HREF="bmarks?whose={w}&page={p}&num={u}">
                              <span class="huge"><H1>&larr;</H1></span></A>'''.format(w=whose,
                                                                                      p=prev,
-                                                                                     u=user_num_bmarks,
-                                                                                     h=base_url)
+                                                                                     u=user_num_bmarks)
         if not request.query.get('whose'):
             page = 0
             total_pages = 0
         # Create a NEXT link if one is needed
         if page < total_pages:
-            pagination += '''<A STYLE="text-decoration:none" title="NEXT PAGE" HREF="{h}bmarks?whose={w}&page={n}&num={u}">
-                             <span class="huge"><H1>&rarr;</H1></span></A>'''.format(w=whose, n=next, u=user_num_bmarks,
-                                                                                     h=base_url)
+            pagination += '''<A STYLE="text-decoration:none" title="NEXT PAGE" HREF="bmarks?whose={w}&page={n}&num={u}">
+                             <span class="huge"><H1>&rarr;</H1></span></A>'''.format(w=whose, n=next, u=user_num_bmarks)
         else:
             # adjust the total count when on the last page since
             # it might not have user_num_bmarks items remaining
@@ -488,7 +473,7 @@ def show_bmarks(base_url):
     return return_data
 
 
-def do_add(base_url):
+def do_add():
     """Add new bookmark content."""
     return_data = ''
     auth_payload = auth_check()
@@ -496,15 +481,14 @@ def do_add(base_url):
         username = request.get_cookie('tasti_username').lower()
         if request.method == 'POST' and request.forms.get('url'):
             return_data += add_bmark_db(username)
-        return_data += add_bmark_form(base_url,
-                                      request.get_cookie('tasti_username').lower())
+        return_data += add_bmark_form(request.get_cookie('tasti_username').lower())
     else:
-        return_data += '''Only users who have <A HREF="{h}login?do=0">logged in</a>
-                          may add new bookmarks.<BR>'''.format(h=base_url)
+        return_data += '''Only users who have <A HREF="login?do=0">logged in</a>
+                          may add new bookmarks.<BR>'''
     return return_data
 
 
-def add_bmark_form(base_url, username):
+def add_bmark_form(username):
     """Generate form for adding a new bookmark."""
     name = ''
     url = ''
@@ -519,7 +503,7 @@ def add_bmark_form(base_url, username):
     tags_qry = db_qry([tags_sql, None], 'select')
     # generate add bookmark form
     return_data += '''<span class="huge">Add a new bookmark to <B>Tasti</B>:</span><BR><BR> 
-                        <FORM method="POST" action="{u}add" id="add_bmark"><TABLE>'''.format(u=base_url)
+                        <FORM method="POST" action="add" id="add_bmark"><TABLE>'''
     return_data += '''<TR><TD>Name/Description*:&nbsp;</TD>
                           <TD>&nbsp;</TD>
                           <TD><INPUT TYPE="text" name="name" id="name" size="55" value="{n}"></TD>
@@ -564,13 +548,13 @@ def add_bmark_form(base_url, username):
     return return_data
 
 
-def edit_bmarks(base_url):
+def edit_bmarks():
     """Edit bookmarks."""
     return_data = ''
     auth = auth_check()
     if request.method == 'GET' and auth['username'] and hash_check() and request.query.get('func'):
         # display the editing form
-        return_data += edit_bmarks_form(auth['username'], base_url)
+        return_data += edit_bmarks_form(auth['username'])
     elif request.method == 'POST' and auth['username'] and request.forms.get('name'):
         # process the data POST'd from the edit form
         return_data += edit_bmarks_process(auth['username'])
@@ -631,7 +615,7 @@ def edit_bmarks_process(username):
     return return_data
 
 
-def edit_bmarks_form(username, base_url):
+def edit_bmarks_form(username):
     """Bookmark edit form content."""
     return_data = ''
     if request.query.get('func') == 'edit' and request.query.get('id'):
@@ -652,7 +636,7 @@ def edit_bmarks_form(username, base_url):
             return_data += '<span class="bad">tags query FAILED<BR>{}<BR>'.format(tags_sql)
             return return_data
         return_data += '''<span class="huge">Edit this bookmark:</span><BR><BR>
-				            <FORM method="POST" action="{b}edit" id="edit_bmark"><TABLE>
+				            <FORM method="POST" action="edit" id="edit_bmark"><TABLE>
 					        <TR><TD>Name/Description*:&nbsp;</TD>
                             <TD>&nbsp;</TD><TD><INPUT TYPE="text" NAME="name" id="name" size="55" VALUE="{n}"></TD></TR>
 					        <TR><TD>URL*:&nbsp;</TD><TD>&nbsp;</TD>
@@ -660,8 +644,7 @@ def edit_bmarks_form(username, base_url):
 					        <TR><TD>Notes:&nbsp;</TD><TD>&nbsp;</TD>
                             <TD><INPUT TYPE="text" NAME="notes" id="notes" size="55" VALUE="{no}"></TD></TR>
 					        <TR><TD>Tags:&nbsp;</TD><TD>&nbsp;</TD>
-                            <TD><INPUT TYPE="text" NAME="tags" id="tags" size="55" VALUE="'''.format(b=base_url,
-                                                                                                     n=name,
+                            <TD><INPUT TYPE="text" NAME="tags" id="tags" size="55" VALUE="'''.format(n=name,
                                                                                                      u=url,no=notes)
         for tag_l in tags_qry:
             return_data += '{} '.format(tag_l[0])
@@ -734,7 +717,7 @@ def add_bmark_db(username, bmark_tags_list=[''],
     return return_data
 
 
-def generate_tabs(base_url):
+def generate_tabs():
     """Generate tab content structure."""
     return_data = ''
     account_selected = ''
@@ -753,12 +736,11 @@ def generate_tabs(base_url):
     if script == 'edit_tags':
         tag_selected = selected
     return_data += '''<div id="tabs"><ul>
-		              <li {a}><a href="{bu}account">Details</a></li><!-- {c} -->
-                      <li {i}><a href="{bu}import">Import&nbsp;Bookmarks</a></li><!-- {c} -->
-                      <li {b}><a href="{bu}bmarklet">Bookmarklet</a></li><!-- {c} -->
-                      <li {t}><a href="{bu}edit_tags">Tags</a></li><!-- -->
-                      </ul></div>'''.format(bu=base_url,
-                                            a=account_selected,
+		              <li {a}><a href="account">Details</a></li><!-- {c} -->
+                      <li {i}><a href="import">Import&nbsp;Bookmarks</a></li><!-- {c} -->
+                      <li {b}><a href="bmarklet">Bookmarklet</a></li><!-- {c} -->
+                      <li {t}><a href="edit_tags">Tags</a></li><!-- -->
+                      </ul></div>'''.format(a=account_selected,
                                             i=import_selected,
                                             b=bmarklet_selected,
                                             t=tag_selected,
@@ -854,7 +836,7 @@ def delete_tags(username, form_dict):
     return return_data
 
 
-def bmark_import_file(username, base_url, bmark_file_data):
+def bmark_import_file(username, bmark_file_data):
     """Process bookmark import file."""
     return_data = ''
     use_import_tag = ['']
@@ -878,23 +860,23 @@ def bmark_import_file(username, base_url, bmark_file_data):
     return return_data
 
 
-def bmark_import_form(base_url):
+def bmark_import_form():
     """Show bookmark import form."""
     return_data = ''
     return_data += '''<div id="content"><span class="big"><B>Tasti</B> currently supports bulk imports via an HTML bookmarks file
                        (from your web browser export):</span><BR><BR>
-	                   <FORM method="POST" action="{b}import" id="import" enctype="multipart/form-data"><UL>
+	                   <FORM method="POST" action="import" id="import" enctype="multipart/form-data"><UL>
 	                   <LI>&nbsp;Upload a bookmarks file from your web browser:&nbsp;
                        <INPUT type="file" name="upload_bmark"><BR>&nbsp;</LI>
 		               <LI>&nbsp;
                             <label><input type="checkbox" name="import_tag">&nbsp;&nbsp;Add the 'imported' tag to each bookmark</label><BR>&nbsp;</LI> 
 		               </UL><BR><CENTER>
                        <INPUT type="submit" name="save" value="IMPORT" />
-                       </CENTER></FORM><BR></div>'''.format(b=base_url)
+                       </CENTER></FORM><BR></div>'''
     return return_data
     
 
-def account_details_form(username, base_url):
+def account_details_form(username):
     """Render account details form content."""
     name = ''
     email = ''
@@ -908,7 +890,7 @@ def account_details_form(username, base_url):
     email = account_qry[0][1]
     return_data += '''<div id="content"><span class="big">Please edit the fields that you wish to change for your <B>
                         Tasti</B> account:</span><BR><BR>
-                        <FORM method="POST" action="{bu}account" id="register"><TABLE>
+                        <FORM method="POST" action="account" id="register"><TABLE>
 			            <TR><TD><label for="password0">Change your Password (at least 6 characters):&nbsp;</label></TD>
                             <TD>&nbsp;</TD><TD><INPUT NAME="password0" TYPE="password" id="password0" /></TD></TR>
 			            <TR><TD><label for="password1">Enter the new password again:&nbsp;</label></TD>
@@ -920,11 +902,11 @@ def account_details_form(username, base_url):
 			            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
 			            <TR><TD>&nbsp;</TD><TD><DIV class="submit">
                         <INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
-		                </TABLE></FORM><BR></div>'''.format(bu=base_url, n=name, e=email)
+		                </TABLE></FORM><BR></div>'''.format(n=name, e=email)
     return return_data
 
 
-def edit_tags(base_url, username):
+def edit_tags(username):
     """Render tag edit functionality."""
     return_data = ''
     if request.method == 'POST' and request.forms.get('submit'):
@@ -945,17 +927,17 @@ def edit_tags(base_url, username):
     tag_list_sql = "SELECT id, tag FROM tags WHERE owner='{u}' ORDER BY tag".format(u=username)
     tag_list_qry = db_qry([tag_list_sql, None], 'select')
     if not tag_list_qry:
-        return_data += 'select tags query failed:<BR>{s}<BR>'.format(s=tag_list_sql)
+        return_data += '<BR>No tags found<BR>'
         return return_data
     if not tag_list_qry[0]:
         return_data += '''<BR><span class="huge">&nbsp;You do not have any tags to edit at this time.  
-                          Try <A HREF="{u}add">adding</a> a bookmark to create new tags</span><BR><BR><BR>'''.format(u=base_url)
+                          Try <A HREF="add">adding</a> a bookmark to create new tags</span><BR><BR><BR>'''
         return return_data
     return_data += '''<BR><span class="huge">Edit the tags that you wish to rename, or check the tags that you wish to delete:</span>
-                        <FORM method="POST" action="{u}edit_tags" id="edit_tags">
+                        <FORM method="POST" action="edit_tags" id="edit_tags">
 		                <span class="normal">&nbsp;Toggle all&nbsp;</span>
                         <INPUT TYPE="checkbox" onclick="toggle('chkbox1')"><BR><BR>
-		                <CENTER><div id="chkbox1"><TABLE><TR>'''.format(u=base_url)
+		                <CENTER><div id="chkbox1"><TABLE><TR>'''
     row_counter = 0
     max_tags_row = 4
     for row in tag_list_qry:
@@ -974,10 +956,12 @@ def edit_tags(base_url, username):
     return return_data
 
 
-def show_bmarklet(base_url):
+def show_bmarklet():
     """Render bookmarklet content."""
     return_data = ''
-    bmarklet_url = '{a}add?url='.format(a=base_url)
+    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
+                                         sc=request.environ.get('SCRIPT_NAME'))
+    bmarklet_url = '{}add?url='.format(base_url)
     bmarklet_string = """javascript:(function(){f='""" + bmarklet_url + """'+encodeURIComponent(window.location.href)+'&name='+encodeURIComponent(document.title)+'&notes='+encodeURIComponent(''+(window.getSelection?window.getSelection():document.getSelection?document.getSelection():document.selection.createRange().text));a=function(){if(!window.open(f+'noui=1&jump=doclose','d','location=yes,links=no,scrollbars=no,toolbar=no,width=550,height=550'))location.href=f+'jump=yes'};if(/Firefox/.test(navigator.userAgent)){setTimeout(a,0)}else{a()}})()"""
     return_data += '''<BR><span class="huge">&nbsp;A bookmarklet is a link that you add to your browser's Toolbar. 
                       It makes it easy to add a new bookmark to <B>Tasti</B>.</span><BR><BR>
@@ -987,7 +971,7 @@ def show_bmarklet(base_url):
     return return_data
 
 
-def account_mgmt(base_url):
+def account_mgmt():
     """Render account management content."""
     return_data = ''
     auth = auth_check()
@@ -1024,46 +1008,46 @@ def account_mgmt(base_url):
                     return_data += '<span class="big"><B><i>Update Successful</i></B></span><BR><BR>'
         # generate tab UI
         script = request.environ.get('SCRIPT_URL').split('/')[-1]
-        return_data += generate_tabs(base_url)
+        return_data += generate_tabs()
         if script == 'account':
-            return_data += account_details_form(username, base_url)
+            return_data += account_details_form(username)
         elif script == 'import':
             if request.method == 'POST':
                 bmark_file_data = request.files.get('upload_bmark')
             if request.method == 'POST' and bmark_file_data and bmark_file_data.file:
                 # process file import
-                return_data += bmark_import_file(username, base_url, bmark_file_data)
+                return_data += bmark_import_file(username, bmark_file_data)
             else:
                 # show file import form
-                return_data += bmark_import_form(base_url)
+                return_data += bmark_import_form()
         elif script == 'bmarklet':
-            return_data += show_bmarklet(base_url)
+            return_data += show_bmarklet()
         elif script == 'edit_tags':
-            return_data += edit_tags(base_url, username)
+            return_data += edit_tags(username)
         else:
             return_data += '<BR>Unknown function<BR><BR>'
     else:
         return_data += '''<BR>This page is only accessible to users who have 
-                            <A HREF="{h}login?do=0">logged in</a>.<BR><BR>'''.format(h=base_url)
+                            <A HREF="login?do=0">logged in</a>.<BR><BR>'''
     return return_data
 
 
-def login_form(base_url):
+def login_form():
     """Generate login form content."""
     return_data = '''<BR><span class="huge">Enter your <B>Tasti</B> username and password to login</span><BR><BR>
-                    <FORM method="POST" action="{u}login?do=0" id="login"><TABLE>
+                    <FORM method="POST" action="login?do=0" id="login"><TABLE>
             		<TR><TD>Username &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="text" NAME="username" id="username" /></TD></TR>
 		            <TR><TD>Password &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="password" NAME="password" id="password" /></TD></TR>
 		            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
                     <TR><TD>&nbsp;</TD><TD><DIV class="submit"><INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
-		            </TABLE></FORM><BR><BR>'''.format(u=base_url)
+		            </TABLE></FORM><BR><BR>'''
     return return_data
 
 
-def register_form(base_url):
+def register_form():
     """Registration form."""
     return_data = '''<span class="big">Please complete the form to register a new <B>Tasti</B> account:</span><BR><BR>
-                    <FORM method="POST" action="{u}register" id="register"><TABLE><TR>
+                    <FORM method="POST" action="register" id="register"><TABLE><TR>
 		            <TD><label for="username">Username (at least 5 characters)*:&nbsp;</label></TD><TD>&nbsp;</TD>
                     <TD><INPUT TYPE="text" NAME="username" id="username" /></TD></TR>
 		            <TR><TD><label for="password0">Password (at least 6 characters)*:&nbsp;</label></TD><TD>&nbsp;</TD>
@@ -1077,20 +1061,19 @@ def register_form(base_url):
 		            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
 		            <TR><TD>&nbsp;</TD><TD><DIV class="submit"><INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
 		            </TABLE></FORM><BR>
-                    <span class="tiny">&nbsp;&nbsp;* Required field&nbsp;</span><BR>'''.format(u=base_url)
+                    <span class="tiny">&nbsp;&nbsp;* Required field&nbsp;</span><BR>'''
     return return_data
 
 
-def register(base_url):
+def register():
     """Account registration content."""
     return_data = ''
     auth_payload = auth_check()
     if auth_payload['is_authenticated']:
         # already registered/logged in
         return_data += '''You are already logged in (and registered) as <B>{u}</B>.<BR><BR>
-                            Please <A HREF="{b}login?do=1">logout</a> if you wish to register a new account.
-                            <BR><BR>THANKS!'''.format(u=auth_payload['username'],
-                                                      b=base_url)
+                            Please <A HREF="login?do=1">logout</a> if you wish to register a new account.
+                            <BR><BR>THANKS!'''.format(u=auth_payload['username'])
     elif request.method == 'POST' and request.forms.get('username') and request.forms.get('password0') and\
          request.forms.get('password1') and request.forms.get('email'):
         reg_fail_reasons = []
@@ -1132,7 +1115,7 @@ def register(base_url):
             # failure from above
             for failure in reg_fail_reasons:
                 return_data += failure
-            return_data += register_form(base_url)
+            return_data += register_form()
             return return_data
         # all checks passed, process submitted data
         encr_passwd = hashlib.sha1(request.forms.get('password0').strip()).hexdigest()
@@ -1141,20 +1124,20 @@ def register(base_url):
         add_user_qry = db_qry([add_user_sql, add_user_vals], 'insert')
         if not add_user_qry:
             return_data += '<span class="bad">Username creation FAILED.</span><BR>{}<BR>'.format(add_user_sql)
-            return_data += register_form(base_url)
+            return_data += register_form()
             return return_data
         # success
         return_data += '''Your account ( {u} ) has been successfully created. 
-                            You may now login below or <A HREF="{h}login?do=0">HERE</a>.
-                            <BR><BR>'''.format(u=username, h=base_url)
-        return_data += login_form(base_url)
+                            You may now login below or <A HREF="login?do=0">HERE</a>.
+                            <BR><BR>'''.format(u=username)
+        return_data += login_form()
     else:
         # show registration form content
-        return_data += register_form(base_url)
+        return_data += register_form()
     return return_data
 
 
-def login(base_url):
+def login():
     """Base login handler."""
     return_data = ''
     auth_payload = auth_check()
@@ -1189,20 +1172,22 @@ def login(base_url):
             response.set_cookie('tasti_hash', request.get_cookie('tasti_hash'), expires=cookie_exp)
             response.set_cookie('tasti_bmarks_per_page', str(bmarks_per_page), expires=cookie_exp)
             return_data += '<BR>You have been logged out.<BR><BR>'
-            return_data += login_form(base_url)
+            return_data += login_form()
         else:
             return_data += login_success_str
     else:
-        return_data += login_form(base_url)
+        return_data += login_form()
     return return_data
 
 
-def footer(base_url):
+def footer():
     """Footer content."""
     year = datetime.date.today().year
+    base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
+                                         sc=request.environ.get('SCRIPT_NAME'))
     return_data = '''<span class="footer_class1">
-<CENTER><A HREF="{h}">HOME</a>&nbsp;<BR><A HREF="https://github.com/netllama/tastipy">Tasti</a> is licensed under the <A HREF="http://www.gnu.org/licenses/gpl.html">GPL</a>.  Copyright {y}<BR>
-</CENTER></span>'''.format(y=year, h=base_url)
+<CENTER><A HREF="{b}">HOME</a>&nbsp;<BR><A HREF="https://github.com/netllama/tastipy">Tasti</a> is licensed under the <A HREF="http://www.gnu.org/licenses/gpl.html">GPL</a>.  Copyright {y}<BR>
+</CENTER></span>'''.format(y=year, b=base_url)
     return return_data
 
 
