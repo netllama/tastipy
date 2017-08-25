@@ -1,7 +1,52 @@
 * { padding: 0; margin: 0; }
 
+@font-face {
+  font-family: 'Interface';
+  font-style:  normal;
+  font-weight: 400;
+  src: url("Interface-Regular.woff2?v=1.1") format("woff2"),
+       url("Interface-Regular.woff?v=1.1") format("woff");
+}
+@font-face {
+  font-family: 'Interface';
+  font-style:  italic;
+  font-weight: 400;
+  src: url("Interface-RegularItalic.woff2?v=1.1") format("woff2"),
+       url("Interface-RegularItalic.woff?v=1.1") format("woff");
+}
+
+@font-face {
+  font-family: 'Interface';
+  font-style:  normal;
+  font-weight: 500;
+  src: url("Interface-Medium.woff2?v=1.1") format("woff2"),
+       url("Interface-Medium.woff?v=1.1") format("woff");
+}
+@font-face {
+  font-family: 'Interface';
+  font-style:  italic;
+  font-weight: 500;
+  src: url("Interface-MediumItalic.woff2?v=1.1") format("woff2"),
+       url("Interface-MediumItalic.woff?v=1.1") format("woff");
+}
+
+@font-face {
+  font-family: 'Interface';
+  font-style:  normal;
+  font-weight: 700;
+  src: url("Interface-Bold.woff2?v=1.1") format("woff2"),
+       url("Interface-Bold.woff?v=1.1") format("woff");
+}
+@font-face {
+  font-family: 'Interface';
+  font-style:  italic;
+  font-weight: 700;
+  src: url("Interface-BoldItalic.woff2?v=1.1") format("woff2"),
+       url("Interface-BoldItalic.woff?v=1.1") format("woff");
+}
+
 body {
-	font-family: Arial, Helvetica, sans-serif;
+	font-family: Interface, sans-serif;
 	font-size: 14px;
 	color: #C1C34B;
 	background-color: #939393;

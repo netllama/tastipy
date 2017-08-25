@@ -81,6 +81,11 @@ def send_js(filename):
 def send_img(filename):
     return static_file(filename, root='images')
 
+# serve fonts
+@get('<filename:re:.*\.(woff|woff2)>')
+def send_font(filename):
+    return static_file(filename, root='fonts')
+
 @error(404)
 def handle404(error):
     return '<H1>Ooops, its not here<BR>'
