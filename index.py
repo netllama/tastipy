@@ -1,14 +1,14 @@
 import datetime
 import re
 from cgi import escape
-import HTMLParser
+from html.parser import HTMLParser
 import psycopg2
 import psycopg2.extras
 from bottle import route, request, get, post, response
 from math import ceil
 from bs4 import BeautifulSoup
 import hashlib
-from urlparse import parse_qs
+from urllib.parse import parse_qs
 
 
 CONN_STRING = 'host=127.0.0.1 dbname=tasti user=tasti password="" port=5432'
