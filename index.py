@@ -227,13 +227,13 @@ def do_bmarks():
     auth = auth_check()
     
     if auth['is_authenticated'] and auth['username'] and request.query.get('func') and request.query.get('id'):
-    	username = auth['username']
+        username = auth['username']
         bmark_id = request.query.get('id')
         if request.query.get('func') == 'del':
             old_bmark_sql = "SELECT created, url, notes, name FROM bmarks WHERE id='{i}' LIMIT 1".format(i=bmark_id)
             old_bmark_res = db_qry([old_bmark_sql, None], 'select')
             if not old_bmark_res:
-            	return_data += '''<span class="bad">Old Bookmark query FAILED<BR>{}<BR></span>
+                return_data += '''<span class="bad">Old Bookmark query FAILED<BR>{}<BR></span>
                                   <BR><BR>'''.format(old_bmark_sql)
                 return return_data
             old_bmark = old_bmark_res[0]
@@ -245,36 +245,36 @@ def do_bmarks():
             del_sql_vals = [bmark_id, username]
             bmark_del_qry = db_qry([bmark_del_sql, del_sql_vals], 'del')
             if not bmark_del_qry:
-            	# delete failed
-            	return_data += '''<span class="bad">Bookmark ( {n} ) deletion FAILED<BR>{s}</span>
+                # delete failed
+                return_data += '''<span class="bad">Bookmark ( {n} ) deletion FAILED<BR>{s}</span>
                                   <BR><BR>'''.format(n=old_name, s=bmark_del_sql)
             else:
-            	return_data += '''<span class="huge">Bookmark ( {o} ) successfully deleted</span>
+                return_data += '''<span class="huge">Bookmark ( {o} ) successfully deleted</span>
                                   <BR><BR>'''.format(o=old_name)
     else:
-    	return_data += show_bmarks()
+        return_data += show_bmarks()
     return return_data
 
 
 def list_tags():
     """List tags.
 
-	only the user's, if logged in,
+        only the user's, if logged in,
     most recently added otherwise
     """
     return_data = ''
     auth = auth_check()
     tags_sql_base = 'SELECT id, tag FROM tags '
     if auth['is_authenticated'] and auth['username']:
-		tags_sql = "{s} WHERE owner='{u}' ORDER BY tag".format(s=tags_sql_base, u=auth['username'])
+        tags_sql = "{s} WHERE owner='{u}' ORDER BY tag".format(s=tags_sql_base, u=auth['username'])
     else:
-		tags_sql = "{s} ORDER BY last_update, tag LIMIT 50".format(s=tags_sql_base)
+        tags_sql = "{s} ORDER BY last_update, tag LIMIT 50".format(s=tags_sql_base)
     tags_qry_res = db_qry([tags_sql, None], 'select')
     if not tags_qry_res:
-    	return_data += '<span class="bad">You have 0 tags<BR>'
+        return_data += '<span class="bad">You have 0 tags<BR>'
         return return_data
     else:
-    	if auth['username']:
+        if auth['username']:
             tag_string = '<span class="big"><B>Your Tags</B></span><BR><BR>'
             show_mine = '&mine=yes'
         else:
@@ -284,9 +284,9 @@ def list_tags():
         if num_tags:
             return_data += tag_string
             for tag_list in tags_qry_res:
-            	tag_id = tag_list[0]
+                tag_id = tag_list[0]
                 tag = tag_list[1]
-            	return_data += '&nbsp;&nbsp;<A HREF="tags?id={i}{sh}">{t}</a>&nbsp;<BR>'.format(i=tag_id,
+                return_data += '&nbsp;&nbsp;<A HREF="tags?id={i}{sh}">{t}</a>&nbsp;<BR>'.format(i=tag_id,
                                                                                                 sh=show_mine,
                                                                                                 t=tag)
         return_data += '<BR>'
@@ -515,17 +515,17 @@ def add_bmark_form(username):
     return_data += '''<TR><TD>Notes:&nbsp;</TD>
                           <TD>&nbsp;</TD>
                           <TD><INPUT TYPE="text" name="notes" id="notes" size="55"></TD></TR>
-		              <TR><TD>Tags:&nbsp;</TD>
+                            <TR><TD>Tags:&nbsp;</TD>
                           <TD>&nbsp;</TD>
                           <TD><INPUT TYPE="text" name="tags" id="tags" size="55"></TD></TR>
-		              <TR><TD>&nbsp;</TD>
+                            <TR><TD>&nbsp;</TD>
                           <TD>&nbsp;</TD>
                           <TD>&nbsp;</TD>
                           <TD>&nbsp;</TD></TR>
-		              <TR><TD>&nbsp;</TD>
+                            <TR><TD>&nbsp;</TD>
                           <TD><DIV class="submit"><INPUT type="submit" value="Add" /></TD>
                           <TD>&nbsp;</TD></TR>
-	                  </TABLE></FORM><BR>
+                        </TABLE></FORM><BR>
                       <span class="tiny">&nbsp;* Required field</span><BR><BR>'''
     # display a clickable list of the user's tags that
     # can be clicked to be added to the Tags form field above
@@ -636,23 +636,23 @@ def edit_bmarks_form(username):
             return_data += '<span class="bad">tags query FAILED<BR>{}<BR>'.format(tags_sql)
             return return_data
         return_data += '''<span class="huge">Edit this bookmark:</span><BR><BR>
-				            <FORM method="POST" action="edit" id="edit_bmark"><TABLE>
-					        <TR><TD>Name/Description*:&nbsp;</TD>
+                                <FORM method="POST" action="edit" id="edit_bmark"><TABLE>
+                                    <TR><TD>Name/Description*:&nbsp;</TD>
                             <TD>&nbsp;</TD><TD><INPUT TYPE="text" NAME="name" id="name" size="55" VALUE="{n}"></TD></TR>
-					        <TR><TD>URL*:&nbsp;</TD><TD>&nbsp;</TD>
+                                <TR><TD>URL*:&nbsp;</TD><TD>&nbsp;</TD>
                             <TD><INPUT TYPE="text" NAME="url" id="url" size="55" VALUE="{u}"></TD></TR>
-					        <TR><TD>Notes:&nbsp;</TD><TD>&nbsp;</TD>
+                                <TR><TD>Notes:&nbsp;</TD><TD>&nbsp;</TD>
                             <TD><INPUT TYPE="text" NAME="notes" id="notes" size="55" VALUE="{no}"></TD></TR>
-					        <TR><TD>Tags:&nbsp;</TD><TD>&nbsp;</TD>
+                                <TR><TD>Tags:&nbsp;</TD><TD>&nbsp;</TD>
                             <TD><INPUT TYPE="text" NAME="tags" id="tags" size="55" VALUE="'''.format(n=name,
                                                                                                      u=url,no=notes)
         for tag_l in tags_qry:
             return_data += '{} '.format(tag_l[0])
         return_data += '''"></TD></TR><TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
-					        <TR><TD>&nbsp;</TD><TD><DIV class="submit">
+                                <TR><TD>&nbsp;</TD><TD><DIV class="submit">
                             <INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR></TABLE>
-				            <INPUT type="hidden" id="id" name="id" value="{i}">
-				            </FORM><BR><span class="tiny">&nbsp;* Required field</span>
+                                <INPUT type="hidden" id="id" name="id" value="{i}">
+                                </FORM><BR><span class="tiny">&nbsp;* Required field</span>
                             <BR><BR>'''.format(i=bmark_id)
         # display a clickable list of the user's tags
         # that will be added to the Tags form field
@@ -736,7 +736,7 @@ def generate_tabs():
     if script == 'edit_tags':
         tag_selected = selected
     return_data += '''<div id="tabs"><ul>
-		              <li {a}><a href="account">Details</a></li><!-- {c} -->
+                        <li {a}><a href="account">Details</a></li><!-- {c} -->
                       <li {i}><a href="import">Import&nbsp;Bookmarks</a></li><!-- {c} -->
                       <li {b}><a href="bmarklet">Bookmarklet</a></li><!-- {c} -->
                       <li {t}><a href="edit_tags">Tags</a></li><!-- -->
@@ -891,18 +891,18 @@ def account_details_form(username):
     return_data += '''<div id="content"><span class="big">Please edit the fields that you wish to change for your <B>
                         Tasti</B> account:</span><BR><BR>
                         <FORM method="POST" action="account" id="register"><TABLE>
-			            <TR><TD><label for="password0">Change your Password (at least 6 characters):&nbsp;</label></TD>
+                                <TR><TD><label for="password0">Change your Password (at least 6 characters):&nbsp;</label></TD>
                             <TD>&nbsp;</TD><TD><INPUT NAME="password0" TYPE="password" id="password0" /></TD></TR>
-			            <TR><TD><label for="password1">Enter the new password again:&nbsp;</label></TD>
+                                <TR><TD><label for="password1">Enter the new password again:&nbsp;</label></TD>
                             <TD>&nbsp;</TD><TD><INPUT NAME="password1" TYPE="password" id="password1" /></TD></TR>
-			            <TR><TD><label for="fullname">Update your full name:&nbsp;</label></TD>
+                                <TR><TD><label for="fullname">Update your full name:&nbsp;</label></TD>
                             <TD>&nbsp;</TD><TD><INPUT NAME="fullname" TYPE="text" id="fullname" value="{n}" /></TD></TR>
-			            <TR><TD><label for="email">Update your email address:&nbsp;</label></TD>
+                                <TR><TD><label for="email">Update your email address:&nbsp;</label></TD>
                             <TD>&nbsp;</TD><TD><INPUT NAME="email" TYPE="text" id="email" value="{e}" /></TD></TR>
-			            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
-			            <TR><TD>&nbsp;</TD><TD><DIV class="submit">
+                                <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
+                                <TR><TD>&nbsp;</TD><TD><DIV class="submit">
                         <INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
-		                </TABLE></FORM><BR></div>'''.format(n=name, e=email)
+                            </TABLE></FORM><BR></div>'''.format(n=name, e=email)
     return return_data
 
 
@@ -935,9 +935,9 @@ def edit_tags(username):
         return return_data
     return_data += '''<BR><span class="huge">Edit the tags that you wish to rename, or check the tags that you wish to delete:</span>
                         <FORM method="POST" action="edit_tags" id="edit_tags">
-		                <span class="normal">&nbsp;Toggle all&nbsp;</span>
+                            <span class="normal">&nbsp;Toggle all&nbsp;</span>
                         <INPUT TYPE="checkbox" onclick="toggle('chkbox1')"><BR><BR>
-		                <CENTER><div id="chkbox1"><TABLE><TR>'''
+                            <CENTER><div id="chkbox1"><TABLE><TR>'''
     row_counter = 0
     max_tags_row = 4
     for row in tag_list_qry:
@@ -965,9 +965,9 @@ def show_bmarklet():
     bmarklet_string = """javascript:(function(){f='""" + bmarklet_url + """'+encodeURIComponent(window.location.href)+'&name='+encodeURIComponent(document.title)+'&notes='+encodeURIComponent(''+(window.getSelection?window.getSelection():document.getSelection?document.getSelection():document.selection.createRange().text));a=function(){if(!window.open(f+'noui=1&jump=doclose','d','location=yes,links=no,scrollbars=no,toolbar=no,width=550,height=550'))location.href=f+'jump=yes'};if(/Firefox/.test(navigator.userAgent)){setTimeout(a,0)}else{a()}})()"""
     return_data += '''<BR><span class="huge">&nbsp;A bookmarklet is a link that you add to your browser's Toolbar. 
                       It makes it easy to add a new bookmark to <B>Tasti</B>.</span><BR><BR>
-		              Drag the link below to your toolbar, and then you can click that link when viewing any web 
+                        Drag the link below to your toolbar, and then you can click that link when viewing any web 
                       page to quickly & easily add it as a bookmark.<BR><BR><BR>
-		              <CENTER><A HREF="{b}"><B>Add to Tasti</B></a></CENTER><BR><BR><BR>'''.format(b=bmarklet_string)
+                        <CENTER><A HREF="{b}"><B>Add to Tasti</B></a></CENTER><BR><BR><BR>'''.format(b=bmarklet_string)
     return return_data
 
 
@@ -1036,11 +1036,11 @@ def login_form():
     """Generate login form content."""
     return_data = '''<BR><span class="huge">Enter your <B>Tasti</B> username and password to login</span><BR><BR>
                     <FORM method="POST" action="login?do=0" id="login"><TABLE>
-            		<TR><TD>Username &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="text" NAME="username" id="username" /></TD></TR>
-		            <TR><TD>Password &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="password" NAME="password" id="password" /></TD></TR>
-		            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
+                        <TR><TD>Username &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="text" NAME="username" id="username" /></TD></TR>
+                            <TR><TD>Password &nbsp;</TD><TD>&nbsp;</TD><TD><INPUT TYPE="password" NAME="password" id="password" /></TD></TR>
+                            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
                     <TR><TD>&nbsp;</TD><TD><DIV class="submit"><INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
-		            </TABLE></FORM><BR><BR>'''
+                        </TABLE></FORM><BR><BR>'''
     return return_data
 
 
@@ -1048,19 +1048,19 @@ def register_form():
     """Registration form."""
     return_data = '''<span class="big">Please complete the form to register a new <B>Tasti</B> account:</span><BR><BR>
                     <FORM method="POST" action="register" id="register"><TABLE><TR>
-		            <TD><label for="username">Username (at least 5 characters)*:&nbsp;</label></TD><TD>&nbsp;</TD>
+                        <TD><label for="username">Username (at least 5 characters)*:&nbsp;</label></TD><TD>&nbsp;</TD>
                     <TD><INPUT TYPE="text" NAME="username" id="username" /></TD></TR>
-		            <TR><TD><label for="password0">Password (at least 6 characters)*:&nbsp;</label></TD><TD>&nbsp;</TD>
+                        <TR><TD><label for="password0">Password (at least 6 characters)*:&nbsp;</label></TD><TD>&nbsp;</TD>
                     <TD><INPUT NAME="password0" TYPE="text" id="password0" /></TD></TR>
-		            <TR><TD><label for="password1">Enter the same password again*:&nbsp;</label></TD><TD>&nbsp;</TD>
+                        <TR><TD><label for="password1">Enter the same password again*:&nbsp;</label></TD><TD>&nbsp;</TD>
                     <TD><INPUT NAME="password1" TYPE="text" id="password1" /></TD></TR>
-		            <TR><TD><label for="fullname">Enter your full name:&nbsp;</label></TD><TD>&nbsp;</TD>
+                        <TR><TD><label for="fullname">Enter your full name:&nbsp;</label></TD><TD>&nbsp;</TD>
                     <TD><INPUT NAME="fullname" TYPE="text" id="fullname" /></TD></TR>
-		            <TR><TD><label for="email">Enter your email address*:&nbsp;</label></TD><TD>&nbsp;</TD>
+                        <TR><TD><label for="email">Enter your email address*:&nbsp;</label></TD><TD>&nbsp;</TD>
                     <TD><INPUT NAME="email" TYPE="text" id="email" /></TD></TR>
-		            <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
-		            <TR><TD>&nbsp;</TD><TD><DIV class="submit"><INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
-		            </TABLE></FORM><BR>
+                        <TR><TD>&nbsp;</TD><TD>&nbsp;</TD><TD>&nbsp;</TD></TR>
+                        <TR><TD>&nbsp;</TD><TD><DIV class="submit"><INPUT type="submit" value="Submit" /></TD><TD>&nbsp;</TD></TR>
+                            </TABLE></FORM><BR>
                     <span class="tiny">&nbsp;&nbsp;* Required field&nbsp;</span><BR>'''
     return return_data
 
