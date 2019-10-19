@@ -530,7 +530,7 @@ def add_bmark_form(username):
     # display a clickable list of the user's tags that
     # can be clicked to be added to the Tags form field above
     if tags_qry:
-        html_parser = HTMLParser.HTMLParser()
+        html_parser = HTMLParser()
         tag_counter = 0
         max_tags_per_row = 10
         return_data += '''<span class="big">Click below to add one (or more) of your 
