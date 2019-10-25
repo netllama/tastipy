@@ -989,7 +989,7 @@ def account_mgmt():
                 password0 = request.forms.get('password0').strip()
                 password1 = request.forms.get('password1').strip()
                 if password0 and password1 and password0 == password1:
-                    password = hashlib.sha1(password0).hexdigest()
+                    password = hashlib.sha1(password0.encode()).hexdigest()
                     account_sql += "password='{p}', ".format(p=password)
             # update name in database
             if request.forms.get('fullname') and request.forms.get('fullname').strip():
@@ -1118,7 +1118,7 @@ def register():
             return_data += register_form()
             return return_data
         # all checks passed, process submitted data
-        encr_passwd = hashlib.sha1(request.forms.get('password0').strip()).hexdigest()
+        encr_passwd = hashlib.sha1(request.forms.get('password0').encode().strip()).hexdigest()
         add_user_sql = 'INSERT INTO users (username, password, name, email) VALUES (%s, %s, %s, %s)'
         add_user_vals = [username, encr_passwd, full_name, email]
         add_user_qry = db_qry([add_user_sql, add_user_vals], 'insert')
@@ -1148,7 +1148,7 @@ def login():
     if not auth_payload['is_authenticated'] and request.method == 'POST' and request.forms.get('username') and request.forms.get('password'):
         # not authenticated yet, attempting to auth
         username = request.forms.get('username').strip().lower()
-        password = hashlib.sha1(request.forms.get('password').strip()).hexdigest()
+        password = hashlib.sha1(request.forms.get('password').encode().strip()).hexdigest()
         is_authenticated_sql = "SELECT id FROM users WHERE username='{u}' AND password='{p}'".format(u=username,
                                                                                                      p=password)
         is_authenticated_qry = db_qry([is_authenticated_sql, None], 'select')
