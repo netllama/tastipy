@@ -1,6 +1,6 @@
 import datetime
 import re
-from cgi import escape
+from html import escape
 from html.parser import HTMLParser
 import psycopg2
 import psycopg2.extras
