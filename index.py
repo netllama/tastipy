@@ -1,7 +1,6 @@
 import datetime
 import re
-from html import escape
-from html.parser import HTMLParser
+from html import escape, unescape
 import psycopg2
 import psycopg2.extras
 from bottle import route, request, get, post, response
@@ -530,13 +529,12 @@ def add_bmark_form(username):
     # display a clickable list of the user's tags that
     # can be clicked to be added to the Tags form field above
     if tags_qry:
-        html_parser = HTMLParser()
         tag_counter = 0
         max_tags_per_row = 10
         return_data += '''<span class="big">Click below to add one (or more) of your 
                         pre-existing tags to the new bookmark above:</span><BR><BR>'''
         for raw_tag_name in tags_qry:
-            tag_name = html_parser.unescape(raw_tag_name[0]).strip()
+            tag_name = unescape(raw_tag_name[0]).strip()
             return_data += '''<A onclick="document.getElementById('tags').value=document.getElementById('tags').value + ' ' + '{t}';">
                               {t}</a>&nbsp;&nbsp;'''.format(t=tag_name)
             tag_counter += 1
