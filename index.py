@@ -802,35 +802,32 @@ def delete_tags(username, form_dict):
         return return_data
     for changed_tag_id in form_dict['taglist']:
         # get original/old tag name
-        old_tag_name_sql = """SELECT tag FROM tags
-                              WHERE owner='{u}' AND id='{i}'
-                              ORDER BY id LIMIT 1""".format(u=username,
-                                                            i=changed_tag_id)
+        old_tag_name_sql = f"""SELECT tag FROM tags
+                              WHERE owner='{username}' AND id='{changed_tag_id.decode('UTF-8')}'
+                              ORDER BY id LIMIT 1"""
         old_tag_name_qry = db_qry([old_tag_name_sql, None], 'select')
         if not old_tag_name_qry:
-            return_data += 'select old tags query failed:<BR>{s}<BR>'.format(s=old_tag_name_sql)
+            return_data += f'select old tags query failed:<BR>{old_tag_name_sql}<BR>'
             tag_updated = False
             continue
         old_tag_name = old_tag_name_qry[0][0]
-
         # update to new tag
         bmark_tag_rename_sql = 'UPDATE bmarks SET tag=NULL WHERE owner=%s AND tag=%s'
         bmark_tag_rename_vals = [username, old_tag_name]
         bmark_tag_rename_qry = db_qry([bmark_tag_rename_sql, bmark_tag_rename_vals], 'update')
         if not bmark_tag_rename_qry:
-            return_data += 'bmark_tag_rename_qry query failed:<BR>{s}<BR>'.format(s=bmark_tag_rename_sql)
+            return_data += f'bmark_tag_rename_qry query failed:<BR>{bmark_tag_rename_sql}<BR>'
             tag_updated = False
             continue
-
         # update to tag id/tag association
         tag_delete_sql = 'DELETE FROM tags WHERE owner=%s AND id=%s'
-        tag_delete_vals = [username, changed_tag_id]
+        tag_delete_vals = [username, changed_tag_id.decode('UTF-8')]
         tag_delete_qry = db_qry([tag_delete_sql, tag_delete_vals], 'delete')
         if not tag_delete_qry:
-            return_data += 'tag_delete_qry query failed:<BR>{s}<BR>'.format(s=tag_delete_sql)
+            return_data += f'tag_delete_qry query failed:<BR>{tag_delete_sql}<BR>'
             tag_updated = False
     if tag_updated:
-        return_data += '<BR>&nbsp;<span class="huge">Tag{s} successfully deleted.</span><BR><BR><BR>'.format(s=tag_plural)
+        return_data += f'<BR>&nbsp;<span class="huge">Tag{tag_plural} successfully deleted.</span><BR><BR><BR>'
     return return_data
 
 
@@ -911,8 +908,11 @@ def edit_tags(username):
         # handle tag delete/rename
         body = request.body.read()
         # clean up POST data into dict
-        form_dict = {k.replace('tagname[', '').replace(']', '').replace('[', ''): v for k, v in parse_qs(body).items()
-                     if k != 'submit'}
+        form_dict = {}
+        for k, v in parse_qs(body).items():
+            if k != 'submit':
+                key = k.decode('UTF-8').replace('tagname[', '').replace(']', '').replace('[', '')
+                form_dict[key] = v
         if request.forms.get('submit') == 'DELETE':
             opt_type = request.forms.get('submit')
             if opt_type == 'DELETE':
