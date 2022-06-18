@@ -1227,7 +1227,7 @@ def db_qry(sql_pl, operation):
         conn.autocommit = True
     except Exception as err:
         print('Database connection failed due to error:\t{}'.format(err))
-        return False
+        return ''
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     # invoke the SQL
     try:
@@ -1236,7 +1236,7 @@ def db_qry(sql_pl, operation):
     except Exception as err:
         # query failed
         print('SQL ( {} )\t failed due to error:\t{}'.format(cursor.query, err))
-        ret_val = False
+        ret_val = ''
     if operation == 'select' and ret_val:
         # get returned data to return
         ret_val = cursor.fetchall()
