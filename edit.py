@@ -1,7 +1,7 @@
 """
     Generates bookmark edit UI.
 """
-from index import header0, do_add, list_tags, footer, edit_bmarks
+from index import header0, list_tags, footer, edit_bmarks
 
 
 def do_edit():
