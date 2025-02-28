@@ -1,4 +1,6 @@
-from bottle import route, request, get, post
+"""
+    Generates bookmarklet page content.
+"""
 from index import header0, account_mgmt, list_tags, footer
 
 

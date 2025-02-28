@@ -1,4 +1,6 @@
-from bottle import route, request, get, post
+"""
+    Generates boomarks page UI.
+"""
 from index import header0, do_bmarks, list_tags, footer
 
 

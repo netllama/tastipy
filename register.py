@@ -1,4 +1,6 @@
-from bottle import route, request, get, post
+"""
+    Generates registration UI.
+"""
 from index import header0, register, list_tags, footer
 
 

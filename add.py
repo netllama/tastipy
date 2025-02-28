@@ -1,4 +1,6 @@
-from bottle import route, request, get, post
+"""
+    Generates add tags UI.
+"""
 from index import header0, do_add, list_tags, footer
 
 

@@ -1,4 +1,6 @@
-from bottle import route, request, get, post
+"""
+    Generates login UI.
+"""
 from index import header0, login, list_tags, footer
 
 
