@@ -1,9 +1,13 @@
+"""
+    Generates default index page UI.
+"""
+
 import datetime
 import re
 from html import escape, unescape
 import psycopg2
 import psycopg2.extras
-from bottle import route, request, get, post, response
+from bottle import request, get, response
 from math import ceil
 from bs4 import BeautifulSoup
 import hashlib
@@ -104,25 +108,25 @@ def do_tags():
         tags = [t[0] for t in tags_qry]
         if request.get_cookie('tasti_bmarks_per_page'):
             bmarks_per_page = request.get_cookie('tasti_bmarks_per_page')
-        if request.query.get('num') and re.match('\d', request.query.get('num')):
+        if request.query.get('num') and re.match(r'\d', request.query.get('num')):
             user_num_bmarks = request.query.get('num')
             # 190 days until expiration
             cookie_expire = datetime.datetime.now() + datetime.timedelta(days=190)
-            response.set_cookie('tasti_bmarks_per_page', user_num_bmarks, expires=cookie_expire)   
+            response.set_cookie('tasti_bmarks_per_page', user_num_bmarks, expires=cookie_expire)
         limit_sql = ' LIMIT {}'.format(user_num_bmarks)
-        marker_dict = get_markers(user_num_bmarks)  
+        marker_dict = get_markers(user_num_bmarks)
         # pagination setup
         page = 1
         if request.query.get('page'):
             page = int(request.query.get('page'))
         prev = int(page) - 1
-        next = int(page) + 1
+        next = int(page) + 1  # pylint: W0622
         max_results = user_num_bmarks
         # Calculate the offset
         from_offset = (int(page) * int(max_results)) - int(max_results)
         url_get_base = 'tags?{u}'.format(u=request.environ.get('QUERY_STRING'))
         tag = tags[0]
-        bmarks_sql_base = "SELECT id, date(last_update) as last_update, owner, url, notes, name FROM bmarks WHERE tag='{t}' ".format(t=tag)
+        bmarks_sql_base = f"SELECT id, date(last_update) as last_update, owner, url, notes, name FROM bmarks WHERE tag='{tag}' "
         if username and request.query.get('mine') and request.query.get('mine') == 'yes':
             bmarks_sql_base += " AND owner='{u}' ".format(u=username)
             mine = '&mine=yes'
@@ -142,9 +146,9 @@ def do_tags():
         num_bmarks = len(bmarks_qry)
         if num_bmarks:
             left_td_width = 100 - (22 + len(tag))
-            return_data += '''<TABLE width="100%"><TR>
-                                <TD width="{lw}%">
-                                <span class="huge">Bookmarks tagged with <B>{t}</B></span></TD>'''.format(lw=left_td_width, t=tag)
+            return_data += f'''<TABLE width="100%"><TR>
+                                <TD width="{left_td_width}%">
+                                <span class="huge">Bookmarks tagged with <B>{tag}</B></span></TD>'''
             # only render the bmarks/page menu on the 'MY BOOKMARKS' page
             if hash_check():
                 return_data += '''<TD valign="top"><div id="menu">
@@ -172,13 +176,13 @@ def do_tags():
                 notes = escape(bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;', "'"), quote=True)
                 name = bmark_row[5].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
                 if notes:
-                    notes_string = '<BR><span class="small"><B>{n}</B></span>'.format(n=notes)
+                    notes_string = f'<BR><span class="small"><B>{notes}</B></span>'
                 if hash_check() and owner == username:
-                    bmark_user_edit_string = '''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
-                                                &nbsp;|&nbsp;<A HREF="bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'''.format(i=bm_id)
+                    bmark_user_edit_string = f'''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
+                                                &nbsp;|&nbsp;<A HREF="bmarks?id={bm_id}&func=del"><B>DELETE</B></a>&nbsp;</span>'''
                 else:
-                    bmark_user_edit_string = '''<BR><span class="normal">Created by <A HREF="bmarks?whose={o}">
-                                                <B>{o}</B></a>&nbsp;</span>'''.format(o=owner)
+                    bmark_user_edit_string = f'''<BR><span class="normal">Created by <A HREF="bmarks?whose={o}">
+                                                <B>{owner}</B></a>&nbsp;</span>'''
                 return_data += '''<TABLE><TR>
                                     <TD valign="top" width="95"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
                                     <TD><span class="big"><A HREF="{u}">{n}</a></span>{no}{b}</TD>
@@ -199,9 +203,9 @@ def do_tags():
                                                                                          t=tag_get)
             # Create a NEXT link if one is needed
             if page < total_pages:
-                pagination += '''<A STYLE="text-decoration:none" title="NEXT PAGE" HREF="tags?{m}&page={n}&num={u}{t}">
-                                 <span class="huge"><H1>&rarr;</H1></span></A>'''.format(m=mine, n=next, u=user_num_bmarks,
-                                                                                         t=tag_get)
+                pagination += f'''<A STYLE="text-decoration:none" title="NEXT PAGE" 
+                                    HREF="tags?{mine}&page={next}&num={user_num_bmarks}{tag_get}">
+                                 <span class="huge"><H1>&rarr;</H1></span></A>'''
             else:
                 # adjust the total count when on the last page since
                 # it might not have user_num_bmarks items remaining
@@ -210,11 +214,9 @@ def do_tags():
             plural = ''
             if my_row_count:
                 plural = 's'
-            return_data += '''<TABLE width="100%"><TR COLSPAN="1"><TD>&nbsp;</TD></TR>
-                            <TR><TD COLSPAN="9">&nbsp;{m} Tasti bookmark{p}</TD>
-                            <TD class="page" COLSPAN="4"><B>{pa}</B></TD></TR></TABLE><BR>'''.format(m=my_row_count,
-                                                                                                     p=plural,
-                                                                                                     pa=pagination)
+            return_data += f'''<TABLE width="100%"><TR COLSPAN="1"><TD>&nbsp;</TD></TR>
+                            <TR><TD COLSPAN="9">&nbsp;{my_row_count} Tasti bookmark{plural}</TD>
+                            <TD class="page" COLSPAN="4"><B>{pagination}</B></TD></TR></TABLE><BR>'''
     else:
         return_data += 'No tags selected.<BR><BR><BR>'
     return return_data
@@ -224,7 +226,7 @@ def do_bmarks():
     """Bookmark content."""
     return_data = ''
     auth = auth_check()
-    
+
     if auth['is_authenticated'] and auth['username'] and request.query.get('func') and request.query.get('id'):
         username = auth['username']
         bmark_id = request.query.get('id')
@@ -313,7 +315,7 @@ def show_bmarks():
     return_data = ''
     if request.get_cookie('tasti_bmarks_per_page'):
         bmarks_per_page = request.get_cookie('tasti_bmarks_per_page')
-    if request.query.get('num') and re.match('\d', request.query.get('num')):
+    if request.query.get('num') and re.match(r'\d', request.query.get('num')):
         user_num_bmarks = request.query.get('num')
         # 190 days until expiration
         cookie_expire = datetime.datetime.now() + datetime.timedelta(days=190)
@@ -501,7 +503,7 @@ def add_bmark_form(username):
     tags_sql = "SELECT tag FROM tags WHERE owner='{u}' ORDER BY tag LIMIT 150".format(u=username)
     tags_qry = db_qry([tags_sql, None], 'select')
     # generate add bookmark form
-    return_data += '''<span class="huge">Add a new bookmark to <B>Tasti</B>:</span><BR><BR> 
+    return_data += '''<span class="huge">Add a new bookmark to <B>Tasti</B>:</span><BR><BR>
                         <FORM method="POST" action="add" id="add_bmark"><TABLE>'''
     return_data += '''<TR><TD>Name/Description*:&nbsp;</TD>
                           <TD>&nbsp;</TD>
@@ -531,7 +533,7 @@ def add_bmark_form(username):
     if tags_qry:
         tag_counter = 0
         max_tags_per_row = 10
-        return_data += '''<span class="big">Click below to add one (or more) of your 
+        return_data += '''<span class="big">Click below to add one (or more) of your
                         pre-existing tags to the new bookmark above:</span><BR><BR>'''
         for raw_tag_name in tags_qry:
             tag_name = unescape(raw_tag_name[0]).strip()
@@ -744,7 +746,7 @@ def generate_tabs():
                                             t=tag_selected,
                                             c=ie_comment)
     return return_data
-    
+
 
 def tag_rename(username, form_dict):
     """Handle tag rename change."""
@@ -869,7 +871,7 @@ def bmark_import_form():
                        <INPUT type="submit" name="save" value="IMPORT" />
                        </CENTER></FORM><BR></div>'''
     return return_data
-    
+
 
 def account_details_form(username):
     """Render account details form content."""
@@ -928,7 +930,7 @@ def edit_tags(username):
         return_data += '<BR>No tags found<BR>'
         return return_data
     if not tag_list_qry[0]:
-        return_data += '''<BR><span class="huge">&nbsp;You do not have any tags to edit at this time.  
+        return_data += '''<BR><span class="huge">&nbsp;You do not have any tags to edit at this time.
                           Try <A HREF="add">adding</a> a bookmark to create new tags</span><BR><BR><BR>'''
         return return_data
     return_data += '''<BR><span class="huge">Edit the tags that you wish to rename, or check the tags that you wish to delete:</span>
@@ -975,7 +977,6 @@ def account_mgmt():
     auth = auth_check()
     if auth['username'] and hash_check():
         password = ''
-        name = ''
         email = ''
         fullname = ''
         username = auth['username']
@@ -1010,6 +1011,7 @@ def account_mgmt():
         if script == 'account':
             return_data += account_details_form(username)
         elif script == 'import':
+            bmark_file_data = ''
             if request.method == 'POST':
                 bmark_file_data = request.files.get('upload_bmark')
             if request.method == 'POST' and bmark_file_data and bmark_file_data.file:
@@ -1212,8 +1214,6 @@ def hash_check():
     hash_qry = db_qry([hash_sql, None], 'select')
     if len(hash_qry) and hash_qry[0]:
         return hash_qry
-    else:
-        return None
 
 
 def db_qry(sql_pl, operation):

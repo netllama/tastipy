@@ -1,10 +1,12 @@
-from bottle import route, template, error, request, static_file, get, post
+"""
+    Top level app routing definitions.
+"""
+from bottle import route, error, static_file, get
 from index import get_index
 from bmarks import get_bmarks
 from tags import get_tags
 from add import add_tags
 from bmarklet import get_bmarklet
-from account import get_account
 from edit_tags import get_edit_tags
 from importbm import get_import_bm
 from edit import do_edit
@@ -67,22 +69,22 @@ def bmarks():
     return return_data
 
 # serve css
-@get('/<filename:re:.*\.css>')
+@get(r'/<filename:re:.*\.css>')
 def send_css(filename):
     return static_file(filename, root='css')
 
 # serve javascript
-@get('/<filename:re:.*\.js>')
+@get(r'/<filename:re:.*\.js>')
 def send_js(filename):
     return static_file(filename, root='js')
 
 # serve images
-@get('<filename:re:.*\.png>')
+@get(r'<filename:re:.*\.png>')
 def send_img(filename):
     return static_file(filename, root='images')
 
 # serve fonts
-@get('<filename:re:.*\.(woff|woff2)>')
+@get(r'<filename:re:.*\.(woff|woff2)>')
 def send_font(filename):
     return static_file(filename, root='fonts')
 
