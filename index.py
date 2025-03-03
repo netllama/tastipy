@@ -3,15 +3,16 @@
 """
 
 import datetime
-import re
+import hashlib
 from html import escape, unescape
+from math import ceil
+import re
+from urllib.parse import parse_qs
+
+from bs4 import BeautifulSoup
+from bottle import request, get, response
 import psycopg2
 import psycopg2.extras
-from bottle import request, get, response
-from math import ceil
-from bs4 import BeautifulSoup
-import hashlib
-from urllib.parse import parse_qs
 
 
 CONN_STRING = 'host=127.0.0.1 dbname=tasti user=tasti password="" port=5432'
@@ -238,9 +239,6 @@ def do_bmarks():
                                   <BR><BR>'''.format(old_bmark_sql)
                 return return_data
             old_bmark = old_bmark_res[0]
-            old_created = old_bmark[0]
-            old_url = old_bmark[1]
-            old_notes = old_bmark[2]
             old_name = old_bmark[3]
             bmark_del_sql = 'DELETE FROM bmarks WHERE id=%s AND owner=%s'
             del_sql_vals = [bmark_id, username]
@@ -582,7 +580,6 @@ def edit_bmarks_process(username):
         return return_data
     old_created = old_bmark_qry[0][0]
     old_url = old_bmark_qry[0][1]
-    old_notes = old_bmark_qry[0][2]
     old_name = old_bmark_qry[0][3]
     bmark_del_sql = 'DELETE FROM bmarks WHERE owner=%s AND url=%s AND name=%s'
     bmark_del_vals = [username, old_url, old_name]

@@ -89,9 +89,9 @@ def send_font(filename):
     return static_file(filename, root='fonts')
 
 @error(404)
-def handle404(error):
+def handle404():
     return '<H1>Ooops, its not here<BR>'
 
 @error(500)
-def handle500(error):
-    return '<H1>Oops, its broken:&nbsp;{}<BR>'.format(error)
+def handle500(err):
+    return f'<H1>Oops, its broken:&nbsp;{err}<BR>'
