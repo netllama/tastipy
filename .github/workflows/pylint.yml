@@ -23,7 +23,7 @@ jobs:
       run: |
         pylint $(git ls-files '*.py')
     - name: Dump runner context
+      if: always()
       env:
         RUNNER_CONTEXT: ${{ toJson(runner) }}
-      run: |
-        echo "$RUNNER_CONTEXT"
+      run: echo "$RUNNER_CONTEXT"
