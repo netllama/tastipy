@@ -26,4 +26,6 @@ jobs:
       if: always()
       env:
         RUNNER_CONTEXT: ${{ toJson(runner) }}
-      run: echo "$RUNNER_CONTEXT"
+      run: |
+        echo "$RUNNER_CONTEXT"
+        uname -a
