@@ -1,6 +1,6 @@
 name: Pylint
 
-on: [push]
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -22,3 +22,5 @@ jobs:
     - name: Analysing the code with pylint
       run: |
         pylint $(git ls-files '*.py')
+    - name: output info
+      run: uname -a
