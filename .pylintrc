@@ -419,6 +419,7 @@ confidence=HIGH,
            INFERENCE,
            INFERENCE_FAILURE,
            UNDEFINED
+disable = C0209
 
 # Disable the message, report, category or checker with the given id(s). You
 # can either give multiple identifiers separated by comma (,) or put this
