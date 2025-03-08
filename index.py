@@ -10,7 +10,7 @@ import re
 from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
-from bottle import request, get, response
+from bottle import request, response
 import psycopg2
 import psycopg2.extras
 
@@ -74,7 +74,6 @@ def header0():
 def do_tags():
     """Show bookmarks associated with a tag."""
     user_num_bmarks = 15
-    num_bmarks_menu_offset = 53
     return_data = ''
     tag_id = ''
     tag_get = ''
@@ -87,7 +86,6 @@ def do_tags():
         username = request.get_cookie('tasti_username').lower()
         if request.query.get('mine') and request.query.get('mine') == 'yes':
             show_mine = "AND owner='{}'".format(username)
-            num_bmarks_menu_offset = 60
         if tag_id:
             tags_sql += "WHERE id='{t}' {m} LIMIT 1".format(t=tag_id,
                                                             m=show_mine)
@@ -329,6 +327,7 @@ def show_bmarks():
     url_get_base = 'bmarks?{u}'.format(u=request.environ.get('QUERY_STRING'))
     bmarks_sql_base = '''SELECT distinct ON (url) url, id, date(last_update) AS last_update, notes, name, owner
                         FROM bmarks'''
+    username = '%'
     if hash_check():
         username = request.get_cookie('tasti_username').lower()
     if request.query.get('whose') and request.query.get('whose') == mine and hash_check():
@@ -561,6 +560,7 @@ def edit_bmarks():
 def edit_bmarks_process(username):
     """process POST'd bookmark edit data."""
     return_data = ''
+    bmark_tags_list = []
     bmark_id = request.forms.get('id')
     bmark_name = request.forms.get('name').strip()
     bmark_url = request.forms.get('url').strip()
@@ -837,7 +837,6 @@ def bmark_import_file(username, bmark_file_data):
     import_tag = request.forms.get('import_tag')
     if import_tag:
         use_import_tag = ['imported']
-    bmark_filename = bmark_file_data.filename
     # parse bookmark data into urls and names
     soup = BeautifulSoup(bmark_file_data.file.read(), 'lxml')
     parsed_bmark_file_data = soup.find_all('a')
@@ -957,7 +956,7 @@ def show_bmarklet():
                                          sc=request.environ.get('SCRIPT_NAME'))
     bmarklet_url = '{}add?url='.format(base_url)
     bmarklet_string = """javascript:(function(){f='""" + bmarklet_url + """'+encodeURIComponent(window.location.href)+'&name='+encodeURIComponent(document.title)+'&notes='+encodeURIComponent(''+(window.getSelection?window.getSelection():document.getSelection?document.getSelection():document.selection.createRange().text));a=function(){if(!window.open(f+'noui=1&jump=doclose','d','location=yes,links=no,scrollbars=no,toolbar=no,width=550,height=550'))location.href=f+'jump=yes'};if(/Firefox/.test(navigator.userAgent)){setTimeout(a,0)}else{a()}})()"""
-    return_data += '''<BR><span class="huge">&nbsp;A bookmarklet is a link that you add to your browser's Toolbar. 
+    return_data += '''<BR><span class="huge">&nbsp;A bookmarklet is a link that you add to your browser's Toolbar.
                       It makes it easy to add a new bookmark to <B>Tasti</B>.</span><BR><BR>
                         Drag the link below to your toolbar, and then you can click that link when viewing any web 
                       page to quickly & easily add it as a bookmark.<BR><BR><BR>
@@ -1021,7 +1020,7 @@ def account_mgmt():
         else:
             return_data += '<BR>Unknown function<BR><BR>'
     else:
-        return_data += '''<BR>This page is only accessible to users who have 
+        return_data += '''<BR>This page is only accessible to users who have
                             <A HREF="login?do=0">logged in</a>.<BR><BR>'''
     return return_data
 
@@ -1121,7 +1120,7 @@ def register():
             return_data += register_form()
             return return_data
         # success
-        return_data += '''Your account ( {u} ) has been successfully created. 
+        return_data += '''Your account ( {u} ) has been successfully created.
                             You may now login below or <A HREF="login?do=0">HERE</a>.
                             <BR><BR>'''.format(u=username)
         return_data += login_form()
@@ -1206,7 +1205,7 @@ def hash_check():
 
     hash_sql = "SELECT id FROM users WHERE username='{u}' AND password='{p}'".format(u=username, p=password_hash)
     hash_qry = db_qry([hash_sql, None], 'select')
-    if len(hash_qry) and hash_qry[0]:
+    if len(hash_qry) > 0 and hash_qry[0]:
         return hash_qry
 
 
@@ -1220,13 +1219,12 @@ def db_qry(sql_pl, operation):
         conn = psycopg2.connect(CONN_STRING)
         conn.autocommit = True
     except Exception as err:
-        print('Database connection failed due to error:\t{}'.format(err))
+        print(f'Database connection failed due to error:\t{err}')
         return ''
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     # invoke the SQL
     try:
         cursor.execute(sql, sql_vals)
-        row_count = cursor.rowcount
     except Exception as err:
         # query failed
         print('SQL ( {} )\t failed due to error:\t{}'.format(cursor.query, err))
