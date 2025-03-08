@@ -79,7 +79,6 @@ def do_tags():
     tag_id = ''
     tag_get = ''
     show_mine = ''
-    auth = auth_check()
     if request.query.get('id'):
         tag_id = request.query.get('id')
         tag_get = '&id={}'.format(tag_id)
@@ -121,7 +120,7 @@ def do_tags():
         if request.query.get('page'):
             page = int(request.query.get('page'))
         prev = int(page) - 1
-        next = int(page) + 1  # pylint: W0622
+        next = int(page) + 1  # pylint: W622
         max_results = user_num_bmarks
         # Calculate the offset
         from_offset = (int(page) * int(max_results)) - int(max_results)
@@ -160,8 +159,7 @@ def do_tags():
                                         <LI class="item"><A HREF="{u}&num=15">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a15}15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
                                         <LI class="item"><A HREF="{u}&num=20">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a20}20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
                                         <LI class="item"><A HREF="{u}&num=30">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a30}30&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI></UL>
-                                    </DIV>&nbsp;</TD>'''.format(n=num_bmarks_menu_offset,
-                                                                u=url_get_base,
+                                    </DIV>&nbsp;</TD>'''.format(u=url_get_base,
                                                                 a5=marker_dict['5'],
                                                                 a10=marker_dict['10'],
                                                                 a15=marker_dict['15'],
@@ -179,10 +177,10 @@ def do_tags():
                 if notes:
                     notes_string = f'<BR><span class="small"><B>{notes}</B></span>'
                 if hash_check() and owner == username:
-                    bmark_user_edit_string = f'''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
+                    bmark_user_edit_string = f'''<BR><A HREF="edit?id={bm_id}&func=edit"><span class="normal"><B>EDIT</B></a>
                                                 &nbsp;|&nbsp;<A HREF="bmarks?id={bm_id}&func=del"><B>DELETE</B></a>&nbsp;</span>'''
                 else:
-                    bmark_user_edit_string = f'''<BR><span class="normal">Created by <A HREF="bmarks?whose={o}">
+                    bmark_user_edit_string = f'''<BR><span class="normal">Created by <A HREF="bmarks?whose={owner}">
                                                 <B>{owner}</B></a>&nbsp;</span>'''
                 return_data += '''<TABLE><TR>
                                     <TD valign="top" width="95"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
@@ -204,7 +202,7 @@ def do_tags():
                                                                                          t=tag_get)
             # Create a NEXT link if one is needed
             if page < total_pages:
-                pagination += f'''<A STYLE="text-decoration:none" title="NEXT PAGE" 
+                pagination += f'''<A STYLE="text-decoration:none" title="NEXT PAGE"
                                     HREF="tags?{mine}&page={next}&num={user_num_bmarks}{tag_get}">
                                  <span class="huge"><H1>&rarr;</H1></span></A>'''
             else:
@@ -272,23 +270,22 @@ def list_tags():
     if not tags_qry_res:
         return_data += '<span class="bad">You have 0 tags<BR>'
         return return_data
+    if auth['username']:
+        tag_string = '<span class="big"><B>Your Tags</B></span><BR><BR>'
+        show_mine = '&mine=yes'
     else:
-        if auth['username']:
-            tag_string = '<span class="big"><B>Your Tags</B></span><BR><BR>'
-            show_mine = '&mine=yes'
-        else:
-            tag_string = '<span class="big"><B>Recent Tags</B></span><BR><BR>'
-            show_mine = ''
-        num_tags = len(tags_qry_res)
-        if num_tags:
-            return_data += tag_string
-            for tag_list in tags_qry_res:
-                tag_id = tag_list[0]
-                tag = tag_list[1]
-                return_data += '&nbsp;&nbsp;<A HREF="tags?id={i}{sh}">{t}</a>&nbsp;<BR>'.format(i=tag_id,
-                                                                                                sh=show_mine,
-                                                                                                t=tag)
-        return_data += '<BR>'
+        tag_string = '<span class="big"><B>Recent Tags</B></span><BR><BR>'
+        show_mine = ''
+    num_tags = len(tags_qry_res)
+    if num_tags:
+        return_data += tag_string
+        for tag_list in tags_qry_res:
+            tag_id = tag_list[0]
+            tag = tag_list[1]
+            return_data += '&nbsp;&nbsp;<A HREF="tags?id={i}{sh}">{t}</a>&nbsp;<BR>'.format(i=tag_id,
+                                                                                            sh=show_mine,
+                                                                                            t=tag)
+    return_data += '<BR>'
     return return_data
 
 
