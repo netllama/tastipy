@@ -7,5 +7,6 @@ from os import chdir, path
 chdir(path.dirname(__file__))
 
 import bottle  # pylint: disable=C0413
+import tastiapp
 
 application = bottle.default_app()
