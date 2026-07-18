@@ -720,7 +720,7 @@ def generate_tabs():
     tag_selected = ''
     ie_comment = 'these comments between lis solve a bug in IE that prevents spaces appearing between list items that appear on different lines in the source'
     selected = 'id="selected"'
-    script = request.environ.get('SCRIPT_URL').split('/')[-1]
+    script = (request.environ.get('SCRIPT_URL') or request.path).split('/')[-1]
     if script == 'account':
         account_selected = selected
     if script == 'import':
@@ -999,7 +999,7 @@ def account_mgmt():
                 else:
                     return_data += '<span class="big"><B><i>Update Successful</i></B></span><BR><BR>'
         # generate tab UI
-        script = request.environ.get('SCRIPT_URL').split('/')[-1]
+        script = (request.environ.get('SCRIPT_URL') or request.path).split('/')[-1]
         return_data += generate_tabs()
         if script == 'account':
             return_data += account_details_form(username)
