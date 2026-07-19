@@ -13,85 +13,108 @@ from edit import do_edit
 from login import do_login
 from register import do_register
 
+
 @route('/')
 def myroot():
-    return_data = get_index()
-    return return_data
+    """Serve the top level index page."""
+    return get_index()
+
 
 @route('/account', method=['GET', 'POST'])
-def bmarks():
-    return_data = get_bmarklet()
-    return return_data
+def account_route():
+    """Serve the account page."""
+    return get_bmarklet()
+
 
 @route('/add', method=['GET', 'POST'])
-def bmarks():
-    return_data = add_tags()
-    return return_data
+def add_route():
+    """Serve the add bookmark page."""
+    return add_tags()
+
 
 @route('/bmarklet')
-def bmarks():
-    return_data = get_bmarklet()
-    return return_data
+def bmarklet_route():
+    """Serve the bookmarklet page."""
+    return get_bmarklet()
+
 
 @route('/bmarks')
-def bmarks():
-    return_data = get_bmarks()
-    return return_data
+def bmarks_route():
+    """Serve the bookmarks page."""
+    return get_bmarks()
+
 
 @route('/edit', method=['GET', 'POST'])
-def bmarks():
-    return_data = do_edit()
-    return return_data
+def edit_route():
+    """Serve the bookmark edit page."""
+    return do_edit()
+
 
 @route('/edit_tags', method=['GET', 'POST'])
-def bmarks():
-    return_data = get_edit_tags()
-    return return_data
+def edit_tags_route():
+    """Serve the edit tags page."""
+    return get_edit_tags()
+
 
 @route('/import', method=['GET', 'POST'])
-def bmarks():
-    return_data = get_import_bm()
-    return return_data
+def import_route():
+    """Serve the bookmark import page."""
+    return get_import_bm()
+
 
 @route('/login', method=['GET', 'POST'])
-def bmarks():
-    return_data = do_login()
-    return return_data
+def login_route():
+    """Serve the login page."""
+    return do_login()
+
 
 @route('/register', method=['GET', 'POST'])
-def bmarks():
-    return_data = do_register()
-    return return_data
+def register_route():
+    """Serve the registration page."""
+    return do_register()
+
 
 @route('/tags')
-def bmarks():
-    return_data = get_tags()
-    return return_data
+def tags_route():
+    """Serve the tags page."""
+    return get_tags()
+
 
 # serve css
 @get(r'/<filename:re:.*\.css>')
 def send_css(filename):
+    """Serve CSS static files."""
     return static_file(filename, root='css')
+
 
 # serve javascript
 @get(r'/<filename:re:.*\.js>')
 def send_js(filename):
+    """Serve JavaScript static files."""
     return static_file(filename, root='js')
+
 
 # serve images
 @get(r'<filename:re:.*\.png>')
 def send_img(filename):
+    """Serve PNG image static files."""
     return static_file(filename, root='images')
+
 
 # serve fonts
 @get(r'<filename:re:.*\.(woff|woff2)>')
 def send_font(filename):
+    """Serve font static files."""
     return static_file(filename, root='fonts')
+
 
 @error(404)
 def handle404():
+    """Render the 404 error page."""
     return '<H1>Ooops, its not here<BR>'
+
 
 @error(500)
 def handle500(err):
+    """Render the 500 error page."""
     return f'<H1>Oops, its broken:&nbsp;{err}<BR>'

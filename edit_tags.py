@@ -1,19 +1,10 @@
 """
     Generates edit tags UI.
 """
-from index import header0, account_mgmt, list_tags, footer
+from index import account_mgmt, render_page
 
-
-def get_edit_tags():
-    """Returns edit tags page/index content."""
-    return_data = ''
-    top = '''<html lang="en">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Tasti</title>
-    <link rel="stylesheet" type="text/css" href="main.css" />'''
-
-    top += '''<script type="text/javascript">
+TOGGLE_HEAD = '''
+    <script type="text/javascript">
 		function toggle(aId) {
 			var collection = document.getElementById(aId).getElementsByTagName("input");
 			for (var x=0; x<collection.length; x++) {
@@ -25,29 +16,9 @@ def get_edit_tags():
 				}
 			}
 		}
-	</script>
-</head>
-<body><div id="wrapper"><div id="header">'''
+	</script>'''
 
-    return_data += top
-    return_data += header0()
-    return_data += '''</div>
-    <div id="faux">
-        <div id="leftcolumn">'''
-    return_data += account_mgmt()
-    return_data += '''<div class="clear"></div>
-        </div>
-        <div id="rightcolumn">
-                '''
-    return_data += list_tags()
-    return_data += '''<div class="clear"></div>
-        </div>
-    </div>
-    <div id="footer">'''
-    return_data += footer()
-    bottom = '''</div>
-    </div>
-</body>
-</html>'''
-    return_data += bottom
-    return return_data
+
+def get_edit_tags():
+    """Returns edit tags page/index content."""
+    return render_page(account_mgmt(), TOGGLE_HEAD)

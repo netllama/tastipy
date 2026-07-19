@@ -17,41 +17,61 @@ import psycopg2.extras
 
 CONN_STRING = 'host=127.0.0.1 dbname=tasti user=tasti password="" port=5432'
 
-def get_index():
-    """Returns main page/index content."""
-    return_data = ''
-    top = '''<html lang="en">
+# Common <head> scaffolding that loads jQuery + the Validity plugin and opens
+# the form-validation callback. Individual pages append their own field rules.
+JQUERY_VALIDITY_HEAD = '''
+    <link rel="stylesheet" type="text/css" href="jquery.validity.css" />
+
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript" src="jquery.validity.js"></script>
+
+    <script type="text/javascript">
+            $(function() {{
+                $("form").validity(function() {{'''
+
+# <head> fragment for the pages that use the jQuery Validity form validation
+# (the add and edit bookmark pages).
+FORM_VALIDATION_HEAD = JQUERY_VALIDITY_HEAD + '''
+                $("#name")
+                    .minLength(2, "Must be at least 2 characters") ;
+                $("#url")
+                    .match("url","Requires a valid URL (http://...)")
+                    .minLength(6, "Must be at least 6 characters");
+                }});
+            }});
+    </script>'''
+
+
+def render_page(body_content, head_extra=''):
+    """Assemble a full HTML page from the shared site scaffolding.
+
+    ``body_content`` is the HTML for the page's left column and ``head_extra``
+    is any additional markup to inject into the document <head>.
+    """
+    return f'''<html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Tasti</title>
-    <link rel="stylesheet" type="text/css" href="main.css" />
+    <link rel="stylesheet" type="text/css" href="main.css" />{head_extra}
 </head>
 <body><div id="wrapper">
-        <div id="header">'''
-    return_data += top
-    return_data += header0()
-    return_data += '''</div>
+        <div id="header">{header0()}</div>
     <div id="faux">
-        <div id="leftcolumn">'''
-    return_data += do_bmarks()
-    return_data += '''<div class="clear"></div>
+        <div id="leftcolumn">{body_content}<div class="clear"></div>
         </div>
         <div id="rightcolumn">
-                '''
-    return_data += list_tags()
-    return_data += '''<div class="clear"></div>
+                {list_tags()}<div class="clear"></div>
         </div>
     </div>
-    <div id="footer">'''
-    return_data += footer()
-
-    bottom = '''</div>
+    <div id="footer">{footer()}</div>
     </div>
 </body>
-</html>
-    '''
-    return_data += bottom
-    return return_data
+</html>'''
+
+
+def get_index():
+    """Returns main page/index content."""
+    return render_page(do_bmarks())
 
 
 def header0():
@@ -71,152 +91,168 @@ def header0():
     return return_data
 
 
-def do_tags():
-    """Show bookmarks associated with a tag."""
+def get_num_bmarks():
+    """Return the bookmarks-per-page count, updating the persistence cookie."""
     user_num_bmarks = 15
-    return_data = ''
-    tag_id = ''
-    tag_get = ''
-    show_mine = ''
-    if request.query.get('id'):
-        tag_id = request.query.get('id')
-        tag_get = '&id={}'.format(tag_id)
+    if request.query.get('num') and re.match(r'\d', request.query.get('num')):
+        user_num_bmarks = request.query.get('num')
+        # 190 days until expiration
+        cookie_expire = datetime.datetime.now() + datetime.timedelta(days=190)
+        response.set_cookie('tasti_bmarks_per_page', user_num_bmarks, expires=cookie_expire)
+    return user_num_bmarks
+
+
+def pagination_setup(user_num_bmarks):
+    """Return (page, prev_page, next_page, from_offset) for the current request."""
+    page = 1
+    if request.query.get('page'):
+        page = int(request.query.get('page'))
+    prev = page - 1
+    next_page = page + 1
+    max_results = int(user_num_bmarks)
+    from_offset = (page * max_results) - max_results
+    return page, prev, next_page, from_offset
+
+
+def render_page_menu(url_prefix, marker_dict, prefix_markup=''):
+    """Render the 'Bookmarks/page' selection menu block.
+
+    ``url_prefix`` must already include the query separator so that
+    ``url_prefix + 'num=5'`` forms a valid link.
+    """
+    links = ''
+    for count in ('5', '10', '15', '20', '30'):
+        lead = '&nbsp;' * (7 if count == '5' else 6)
+        trail = '&nbsp;' * 6
+        links += ('<LI class="item"><A HREF="{u}num={c}">{lead}{a}{c}{trail}</a></LI>').format(
+            u=url_prefix, c=count, lead=lead, a=marker_dict[count], trail=trail)
+    return (prefix_markup + '<div id="menu">\n<UL id="item1">\n'
+            '<LI class="top"><B>Bookmarks/page</B></LI>' + links +
+            '</UL>\n</DIV>&nbsp;</TD>')
+
+
+def build_tags_sql(tag_id):
+    """Build the SQL that selects the tag(s) to display."""
     tags_sql = 'SELECT tag FROM tags '
+    show_mine = ''
     if hash_check():
         username = request.get_cookie('tasti_username').lower()
         if request.query.get('mine') and request.query.get('mine') == 'yes':
             show_mine = "AND owner='{}'".format(username)
         if tag_id:
-            tags_sql += "WHERE id='{t}' {m} LIMIT 1".format(t=tag_id,
-                                                            m=show_mine)
+            tags_sql += "WHERE id='{t}' {m} LIMIT 1".format(t=tag_id, m=show_mine)
         else:
             tags_sql += 'WHERE true=true {m} ORDER BY id DESC LIMIT 1'.format(m=show_mine)
     else:
-        username = ''
         if tag_id:
             tags_sql += "WHERE id='{t}' LIMIT 1".format(t=tag_id)
         else:
             tags_sql += 'ORDER BY id DESC LIMIT 1'
+    return tags_sql
+
+
+def render_tag_bmark_row(bmark_row, username):
+    """Render a single bookmark row on a tag page."""
+    bm_id = bmark_row[0]
+    last_update = bmark_row[1]
+    owner = bmark_row[2]
+    url = bmark_row[3]
+    notes = escape(bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;', "'"), quote=True)
+    name = bmark_row[5].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
+    notes_string = ''
+    if notes:
+        notes_string = f'<BR><span class="small"><B>{notes}</B></span>'
+    if hash_check() and owner == username:
+        bmark_user_edit_string = (
+            f'<BR><A HREF="edit?id={bm_id}&func=edit"><span class="normal"><B>EDIT</B></a>'
+            f'\n&nbsp;|&nbsp;<A HREF="bmarks?id={bm_id}&func=del"><B>DELETE</B></a>&nbsp;</span>')
+    else:
+        bmark_user_edit_string = (
+            f'<BR><span class="normal">Created by <A HREF="bmarks?whose={owner}">'
+            f'\n<B>{owner}</B></a>&nbsp;</span>')
+    return '''<TABLE><TR>
+                    <TD valign="top" width="95"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
+                    <TD><span class="big"><A HREF="{u}">{n}</a></span>{no}{b}</TD>
+                </TR></TABLE><HR><BR>'''.format(l=last_update, u=url, n=name,
+                                                no=notes_string, b=bmark_user_edit_string)
+
+
+def render_tag_pagination(pager, my_row_count, mine, tag_get, user_num_bmarks):
+    """Render the pagination footer for a tag page.
+
+    ``pager`` is the (page, prev_page, next_page) tuple from pagination_setup.
+    """
+    page, prev, next_page = pager
+    total_pages = int(ceil(int(my_row_count) / float(user_num_bmarks)))
+    pagination = ''
+    # Create a PREV link if one is needed
+    if page > 1:
+        pagination += (
+            '<A STYLE="text-decoration:none" title="PREVIOUS PAGE" '
+            'HREF="tags?{m}&page={p}&num={u}{t}">'
+            '<span class="huge"><H1>&larr;</H1></span></A>').format(
+                m=mine, p=prev, u=user_num_bmarks, t=tag_get)
+    # Create a NEXT link if one is needed
+    if page < total_pages:
+        pagination += (
+            f'<A STYLE="text-decoration:none" title="NEXT PAGE" '
+            f'HREF="tags?{mine}&page={next_page}&num={user_num_bmarks}{tag_get}">'
+            f'<span class="huge"><H1>&rarr;</H1></span></A>')
+    plural = 's' if my_row_count else ''
+    return (f'<TABLE width="100%"><TR COLSPAN="1"><TD>&nbsp;</TD></TR>'
+            f'<TR><TD COLSPAN="9">&nbsp;{my_row_count} Tasti bookmark{plural}</TD>'
+            f'<TD class="page" COLSPAN="4"><B>{pagination}</B></TD></TR></TABLE><BR>')
+
+
+def render_tagged_bmarks(tag):
+    """Render the paginated bookmarks for a single tag."""
+    username = request.get_cookie('tasti_username').lower() if hash_check() else ''
+    tag_id = request.query.get('id') or ''
+    tag_get = '&id={}'.format(tag_id) if tag_id else ''
+    user_num_bmarks = get_num_bmarks()
+    marker_dict = get_markers(user_num_bmarks)
+    page, prev, next_page, from_offset = pagination_setup(user_num_bmarks)
+    url_get_base = 'tags?{u}'.format(u=request.environ.get('QUERY_STRING'))
+    bmarks_sql_base = (f"SELECT id, date(last_update) as last_update, owner, url, "
+                       f"notes, name FROM bmarks WHERE tag='{tag}' ")
+    mine = ''
+    if username and request.query.get('mine') and request.query.get('mine') == 'yes':
+        bmarks_sql_base += " AND owner='{u}' ".format(u=username)
+        mine = '&mine=yes'
+    bmarks_sql_all = '{bm} ORDER BY owner, last_update, name'.format(bm=bmarks_sql_base)
+    bmarks_sql = '{bm} LIMIT {l} OFFSET {o}'.format(bm=bmarks_sql_all,
+                                                    l=user_num_bmarks, o=from_offset)
+    bmarks_qry = db_qry([bmarks_sql, None], 'select')
+    if not bmarks_qry:
+        return '<span class="bad">Bmarks query FAILED:<BR>{}<BR>'.format(bmarks_sql)
+    bmarks_qry_all_res = db_qry([bmarks_sql_all, None], 'select')
+    if not bmarks_qry_all_res:
+        return '<span class="bad">Bmarks All query FAILED:<BR>{}<BR>'.format(bmarks_sql_all)
+    num_bmarks_all = len(bmarks_qry_all_res)
+    left_td_width = 100 - (22 + len(tag))
+    return_data = f'''<TABLE width="100%"><TR>
+                        <TD width="{left_td_width}%">
+                        <span class="huge">Bookmarks tagged with <B>{tag}</B></span></TD>'''
+    # only render the bmarks/page menu on the 'MY BOOKMARKS' page
+    if hash_check():
+        return_data += render_page_menu(url_get_base + '&', marker_dict, '<TD valign="top">')
+    return_data += '</TR></TABLE><HR><BR>'
+    for bmark_row in bmarks_qry:
+        return_data += render_tag_bmark_row(bmark_row, username)
+    return_data += render_tag_pagination((page, prev, next_page), num_bmarks_all,
+                                         mine, tag_get, user_num_bmarks)
+    return return_data
+
+
+def do_tags():
+    """Show bookmarks associated with a tag."""
+    tag_id = request.query.get('id') or ''
+    tags_sql = build_tags_sql(tag_id)
     tags_qry = db_qry([tags_sql, None], 'select')
     if not tags_qry:
-        return_data += '<span class="bad">Tags query FAILED:<BR>{}<BR>'.format(tags_sql)
-        return return_data
-    tag_count = len(tags_qry)
-    if tag_count:
-        tags = [t[0] for t in tags_qry]
-        if request.get_cookie('tasti_bmarks_per_page'):
-            bmarks_per_page = request.get_cookie('tasti_bmarks_per_page')
-        if request.query.get('num') and re.match(r'\d', request.query.get('num')):
-            user_num_bmarks = request.query.get('num')
-            # 190 days until expiration
-            cookie_expire = datetime.datetime.now() + datetime.timedelta(days=190)
-            response.set_cookie('tasti_bmarks_per_page', user_num_bmarks, expires=cookie_expire)
-        limit_sql = ' LIMIT {}'.format(user_num_bmarks)
-        marker_dict = get_markers(user_num_bmarks)
-        # pagination setup
-        page = 1
-        if request.query.get('page'):
-            page = int(request.query.get('page'))
-        prev = int(page) - 1
-        next = int(page) + 1  # pylint: W622
-        max_results = user_num_bmarks
-        # Calculate the offset
-        from_offset = (int(page) * int(max_results)) - int(max_results)
-        url_get_base = 'tags?{u}'.format(u=request.environ.get('QUERY_STRING'))
-        tag = tags[0]
-        bmarks_sql_base = f"SELECT id, date(last_update) as last_update, owner, url, notes, name FROM bmarks WHERE tag='{tag}' "
-        if username and request.query.get('mine') and request.query.get('mine') == 'yes':
-            bmarks_sql_base += " AND owner='{u}' ".format(u=username)
-            mine = '&mine=yes'
-        else:
-            mine = ''
-        bmarks_sql_all = '{bm} ORDER BY owner, last_update, name'.format(bm=bmarks_sql_base)
-        bmarks_sql = '{bm} {l} OFFSET {o}'.format(bm=bmarks_sql_all, l=limit_sql, o=from_offset)
-        bmarks_qry = db_qry([bmarks_sql, None], 'select')
-        if not bmarks_qry:
-            return_data += '<span class="bad">Bmarks query FAILED:<BR>{}<BR>'.format(bmarks_sql)
-            return return_data
-        bmarks_qry_all_res = db_qry([bmarks_sql_all, None], 'select')
-        if not bmarks_qry_all_res:
-            return_data += '<span class="bad">Bmarks All query FAILED:<BR>{}<BR>'.format(bmarks_sql_all)
-            return return_data
-        num_bmarks_all = len(bmarks_qry_all_res)
-        num_bmarks = len(bmarks_qry)
-        if num_bmarks:
-            left_td_width = 100 - (22 + len(tag))
-            return_data += f'''<TABLE width="100%"><TR>
-                                <TD width="{left_td_width}%">
-                                <span class="huge">Bookmarks tagged with <B>{tag}</B></span></TD>'''
-            # only render the bmarks/page menu on the 'MY BOOKMARKS' page
-            if hash_check():
-                return_data += '''<TD valign="top"><div id="menu">
-                                    <UL id="item1">
-                                    <LI class="top"><B>Bookmarks/page</B></LI>
-                                        <LI class="item"><A HREF="{u}&num=5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a5}5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}&num=10">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a10}10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}&num=15">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a15}15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}&num=20">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a20}20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}&num=30">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a30}30&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI></UL>
-                                    </DIV>&nbsp;</TD>'''.format(u=url_get_base,
-                                                                a5=marker_dict['5'],
-                                                                a10=marker_dict['10'],
-                                                                a15=marker_dict['15'],
-                                                                a20=marker_dict['20'],
-                                                                a30=marker_dict['30'])
-            return_data += '</TR></TABLE><HR><BR>'
-            for bmark_row in bmarks_qry:
-                notes_string = ''
-                bm_id = bmark_row[0]
-                last_update = bmark_row[1]
-                owner = bmark_row[2]
-                url = bmark_row[3]
-                notes = escape(bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;', "'"), quote=True)
-                name = bmark_row[5].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
-                if notes:
-                    notes_string = f'<BR><span class="small"><B>{notes}</B></span>'
-                if hash_check() and owner == username:
-                    bmark_user_edit_string = f'''<BR><A HREF="edit?id={bm_id}&func=edit"><span class="normal"><B>EDIT</B></a>
-                                                &nbsp;|&nbsp;<A HREF="bmarks?id={bm_id}&func=del"><B>DELETE</B></a>&nbsp;</span>'''
-                else:
-                    bmark_user_edit_string = f'''<BR><span class="normal">Created by <A HREF="bmarks?whose={owner}">
-                                                <B>{owner}</B></a>&nbsp;</span>'''
-                return_data += '''<TABLE><TR>
-                                    <TD valign="top" width="95"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
-                                    <TD><span class="big"><A HREF="{u}">{n}</a></span>{no}{b}</TD>
-                                </TR></TABLE><HR><BR>'''.format(l=last_update, u=url,
-                                                                n=name, no=notes_string,
-                                                                b=bmark_user_edit_string)
-            # pagination settings
-            my_row_count = num_bmarks_all
-            total_pages = int(ceil(int(my_row_count) / float(max_results)))
-            pagination = ''
-
-            # Create a PREV link if one is needed
-            if page > 1:
-                pagination += '''<A STYLE="text-decoration:none" title="PREVIOUS PAGE" HREF="tags?{m}&page={p}&num={u}{t}">
-                                 <span class="huge"><H1>&larr;</H1></span></A>'''.format(m=mine,
-                                                                                         p=prev,
-                                                                                         u=user_num_bmarks,
-                                                                                         t=tag_get)
-            # Create a NEXT link if one is needed
-            if page < total_pages:
-                pagination += f'''<A STYLE="text-decoration:none" title="NEXT PAGE"
-                                    HREF="tags?{mine}&page={next}&num={user_num_bmarks}{tag_get}">
-                                 <span class="huge"><H1>&rarr;</H1></span></A>'''
-            else:
-                # adjust the total count when on the last page since
-                # it might not have user_num_bmarks items remaining
-                new_max_results = (int(max_results) - ((int(page) * int(max_results)) - int(my_row_count)))
-                max_results = new_max_results
-            plural = ''
-            if my_row_count:
-                plural = 's'
-            return_data += f'''<TABLE width="100%"><TR COLSPAN="1"><TD>&nbsp;</TD></TR>
-                            <TR><TD COLSPAN="9">&nbsp;{my_row_count} Tasti bookmark{plural}</TD>
-                            <TD class="page" COLSPAN="4"><B>{pagination}</B></TD></TR></TABLE><BR>'''
-    else:
-        return_data += 'No tags selected.<BR><BR><BR>'
-    return return_data
+        return '<span class="bad">Tags query FAILED:<BR>{}<BR>'.format(tags_sql)
+    tags = [t[0] for t in tags_qry]
+    return render_tagged_bmarks(tags[0])
 
 
 def do_bmarks():
@@ -299,172 +335,168 @@ def get_markers(user_num_bmarks):
     return marker_dict
 
 
+def build_bmarks_listing(username):
+    """Build the listing query and header details based on the 'whose' filter.
+
+    Returns (bmarks_sql_all, whose, url_get_base, bmarks_intro, is_mine_page).
+    """
+    mine = 'mine'
+    bmarks_sql_base = ('SELECT distinct ON (url) url, id, date(last_update) AS '
+                       'last_update, notes, name, owner FROM bmarks')
+    whose_q = request.query.get('whose')
+    url_get_base = 'bmarks?{u}'.format(u=request.environ.get('QUERY_STRING'))
+    if whose_q and whose_q == mine and hash_check():
+        whose = whose_q
+        url_get_base += '&'
+        is_mine_page = True
+        bmarks_intro = '<span class="huge">Your bookmarks:</span><BR><BR>'
+        bmarks_sql_all = "{s} WHERE owner='{u}' ORDER BY url, last_update".format(
+            s=bmarks_sql_base, u=username)
+    elif whose_q and whose_q != mine:
+        whose = whose_q
+        url_get_base += '&'
+        is_mine_page = False
+        bmarks_intro = "<span class=\"huge\">{o}'s&nbsp;bookmarks:</span><BR><BR>".format(o=whose)
+        bmarks_sql_all = "{s} WHERE owner='{u}' ORDER BY url, last_update".format(
+            s=bmarks_sql_base, u=whose)
+    else:
+        whose = ''
+        url_get_base += '?'
+        is_mine_page = False
+        bmarks_intro = '<span class="huge">Recent bookmarks:</span><BR><BR>'
+        bmarks_sql_all = '{s} ORDER BY url, last_update'.format(s=bmarks_sql_base)
+    return bmarks_sql_all, whose, url_get_base, bmarks_intro, is_mine_page
+
+
+def resolve_tag_link(tag, username):
+    """Return the anchor markup for a tag, or None if the tag lookup fails."""
+    tag_sql = "SELECT id FROM tags WHERE tag='{t}' ".format(t=tag)
+    if hash_check() and request.query.get('whose'):
+        sql_owner = request.query.get('whose')
+        if request.query.get('whose') == 'mine':
+            sql_owner = username
+        tag_sql += "AND owner='{u}'".format(u=sql_owner)
+    tag_sql += 'ORDER BY id LIMIT 1'
+    tag_qry_res = db_qry([tag_sql, None], 'select')
+    if not tag_qry_res:
+        return None
+    tag_id = tag_qry_res[0][0]
+    return '<A HREF="tags?id={tid}">{t}</a>&nbsp;&nbsp;'.format(tid=tag_id, t=tag)
+
+
+def render_bmark_tags(tags_qry, username):
+    """Render the tag links displayed alongside a bookmark."""
+    return_data = '<TD width="95%" valign="top" align="right">'
+    tag_counter = 0
+    for tag_row in tags_qry:
+        tag = tag_row[0]
+        tag_link = resolve_tag_link(tag, username)
+        if tag_link is None:
+            return return_data + '<span class="bad">Tags query FAILED (tag: {})<BR>'.format(tag)
+        return_data += tag_link
+        tag_counter += 1
+        if tag_counter > 4:
+            tag_counter = 0
+            return_data += '<BR>'
+    return_data += '&nbsp;</TD>'
+    return return_data
+
+
+def render_listing_bmark_row(bmark_row, username):
+    """Render one bookmark row (with its tags) on a listing page."""
+    mine = 'mine'
+    url = bmark_row[0]
+    bm_id = bmark_row[1]
+    last_update = bmark_row[2]
+    notes = bmark_row[3].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
+    name = bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
+    owner = bmark_row[5]
+    tags_sql = "SELECT tag FROM bmarks WHERE url='{u}' ".format(u=url)
+    if hash_check() and request.query.get('whose') and request.query.get('whose') == mine:
+        tags_sql += "AND owner='{u}' ".format(u=username)
+        bmark_user_edit_string = (
+            '<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>'
+            '\n&nbsp;|&nbsp;<A HREF="bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'
+            ).format(i=bm_id)
+    else:
+        bmark_user_edit_string = (
+            '<BR><span class="normal">Created by <A HREF="bmarks?whose={o}">'
+            '\n<B>{o}</B></a>&nbsp;</span>').format(o=owner)
+    tags_sql += 'AND length(tag)>0 GROUP BY tag ORDER BY tag LIMIT 15'
+    tags_qry = db_qry([tags_sql, None], 'select')
+    notes_string = ''
+    if notes:
+        notes_string = '<BR><span class="small"><B>{n}</B></span>'.format(n=notes)
+    return_data = '''<TABLE><TR><TD valign="top"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
+                        <TD width="65%"><span class="big"><A HREF="{u}">{n}</a></span>
+                        {no}{b}</TD>'''.format(l=last_update, u=url, n=name,
+                                               no=notes_string, b=bmark_user_edit_string)
+    if tags_qry:
+        return_data += render_bmark_tags(tags_qry, username)
+    return_data += '</TR></TABLE><HR><BR>'
+    return return_data
+
+
+def render_listing_pagination(pager, my_row_count, whose, user_num_bmarks):
+    """Render the pagination footer for a listing page.
+
+    ``pager`` is the (page, prev_page, next_page) tuple from pagination_setup.
+    """
+    page, prev, next_page = pager
+    total_pages = ceil(int(my_row_count) / int(user_num_bmarks))
+    pagination = ''
+    # Create a PREV link if one is needed
+    if page > 1:
+        pagination += (
+            '<A STYLE="text-decoration:none" title="PREVIOUS PAGE" '
+            'HREF="bmarks?whose={w}&page={p}&num={u}">'
+            '<span class="huge"><H1>&larr;</H1></span></A>').format(
+                w=whose, p=prev, u=user_num_bmarks)
+    if not request.query.get('whose'):
+        page = 0
+        total_pages = 0
+    # Create a NEXT link if one is needed
+    if page < total_pages:
+        pagination += (
+            '<A STYLE="text-decoration:none" title="NEXT PAGE" '
+            'HREF="bmarks?whose={w}&page={n}&num={u}">'
+            '<span class="huge"><H1>&rarr;</H1></span></A>').format(
+                w=whose, n=next_page, u=user_num_bmarks)
+    plural = 's' if my_row_count else ''
+    return ('<TABLE width="100%"><TR COLSPAN="1"><TD>&nbsp;</TD></TR>'
+            '<TR><TD COLSPAN="9">&nbsp;{m} Tasti bookmark{p}</TD>'
+            '<TD class="page" COLSPAN="4"><B>{pa}</B></TD></TR></TABLE><BR>').format(
+                m=my_row_count, p=plural, pa=pagination)
+
+
 def show_bmarks():
     """Show bookmarks."""
-    user_num_bmarks = 15
-    mine = 'mine'
-    whose = ''
-    default_num_bmarks_menu_offset = 77
-    return_data = ''
-    if request.get_cookie('tasti_bmarks_per_page'):
-        bmarks_per_page = request.get_cookie('tasti_bmarks_per_page')
-    if request.query.get('num') and re.match(r'\d', request.query.get('num')):
-        user_num_bmarks = request.query.get('num')
-        # 190 days until expiration
-        cookie_expire = datetime.datetime.now() + datetime.timedelta(days=190)
-        response.set_cookie('tasti_bmarks_per_page', user_num_bmarks, expires=cookie_expire)
-    limit_sql = ' LIMIT {}'.format(user_num_bmarks)
-    marker_dict = get_markers(user_num_bmarks)
-    # pagination setup
-    page = 1
-    if request.query.get('page'):
-        page = int(request.query.get('page'))
-    prev = int(page) - 1
-    next = int(page) + 1
-    max_results = user_num_bmarks
-    # Calculate the offset
-    from_offset = (int(page) * int(max_results)) - int(max_results)
-    url_get_base = 'bmarks?{u}'.format(u=request.environ.get('QUERY_STRING'))
-    bmarks_sql_base = '''SELECT distinct ON (url) url, id, date(last_update) AS last_update, notes, name, owner
-                        FROM bmarks'''
     username = '%'
     if hash_check():
         username = request.get_cookie('tasti_username').lower()
-    if request.query.get('whose') and request.query.get('whose') == mine and hash_check():
-        whose = request.query.get('whose')
-        url_get_base += '&'
-        num_bmarks_menu_offset = default_num_bmarks_menu_offset
-        bmarks_intro = '<span class="huge">Your bookmarks:</span><BR><BR>'
-        bmarks_sql_all = '''{s} WHERE owner='{u}' ORDER BY url, last_update'''.format(s=bmarks_sql_base,
-                                                                                      u=username)
-    elif request.query.get('whose') and request.query.get('whose') != mine:
-        whose = request.query.get('whose')
-        url_get_base += '&'
-        num_bmarks_menu_offset = 177
-        bmarks_intro = '''<span class="huge">{o}'s&nbsp;bookmarks:</span><BR><BR>'''.format(o=whose)
-        bmarks_sql_all = '''{s} WHERE owner='{u}' ORDER BY url, last_update'''.format(s=bmarks_sql_base,
-                                                                                      u=whose)
-    else:
-        num_bmarks_menu_offset = 73
-        url_get_base += '?'
-        bmarks_intro = '<span class="huge">Recent bookmarks:</span><BR><BR>'
-        bmarks_sql_all = '{s} ORDER BY url, last_update'.format(s=bmarks_sql_base)
-    bmarks_sql = '{s} {l} OFFSET {o}'.format(s=bmarks_sql_all,
-                                             l=limit_sql,
-                                             o=from_offset)
+    user_num_bmarks = get_num_bmarks()
+    marker_dict = get_markers(user_num_bmarks)
+    page, prev, next_page, from_offset = pagination_setup(user_num_bmarks)
+    bmarks_sql_all, whose, url_get_base, bmarks_intro, is_mine_page = build_bmarks_listing(username)
+    bmarks_sql = '{s} LIMIT {l} OFFSET {o}'.format(s=bmarks_sql_all,
+                                                   l=user_num_bmarks, o=from_offset)
     bmarks_qry = db_qry([bmarks_sql, None], 'select')
     if not bmarks_qry:
-        return_data += '<span class="bad">No bookmarks found<BR>'
-        return return_data
+        return '<span class="bad">No bookmarks found<BR>'
     bmarks_qry_all_res = db_qry([bmarks_sql_all, None], 'select')
     if not bmarks_qry_all_res:
-        return_data += '<span class="bad">Bmarks All query FAILED<BR>{}<BR>'.format(bmarks_sql_all)
-        return return_data
+        return '<span class="bad">Bmarks All query FAILED<BR>{}<BR>'.format(bmarks_sql_all)
     num_bmarks_all = len(bmarks_qry_all_res)
-    num_bmarks = len(bmarks_qry)
-    if num_bmarks:
-        return_data += '<TABLE><TR><TD>{b}</TD>'.format(b=bmarks_intro)
-        # only render the bmarks/page menu on the 'MY BOOKMARKS' page
-        if num_bmarks_menu_offset == default_num_bmarks_menu_offset:
-            return_data += '''<TD width="{n}%">&nbsp;</TD><TD align="center" valign="top"><div id="menu">
-                                <UL id="item1">
-                                <LI class="top"><B>Bookmarks/page</B></LI>
-                                        <LI class="item"><A HREF="{u}num=5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a5}5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}num=10">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a10}10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}num=15">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a15}15&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}num=20">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a20}20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI>
-                                        <LI class="item"><A HREF="{u}num=30">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{a30}30&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></LI></UL>
-                                </DIV>&nbsp;</TD>'''.format(n=num_bmarks_menu_offset,
-                                                            u=url_get_base,
-                                                            a5=marker_dict['5'],
-                                                            a10=marker_dict['10'],
-                                                            a15=marker_dict['15'],
-                                                            a20=marker_dict['20'],
-                                                            a30=marker_dict['30'])
-        return_data += '</TR></TABLE>'
-        for bmark_row in bmarks_qry:
-            notes_string = ''
-            url = bmark_row[0]
-            bm_id = bmark_row[1]
-            last_update = bmark_row[2]
-            notes = bmark_row[3].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
-            name = bmark_row[4].replace('&amp;quot;', '"').replace('&amp;#039;', "'")
-            owner = bmark_row[5]
-            tags_sql = "SELECT tag FROM bmarks WHERE url='{u}' ".format(u=url)
-            if hash_check() and request.query.get('whose') and request.query.get('whose') == mine:
-                tags_sql += "AND owner='{u}' ".format(u=username)
-                bmark_user_edit_string = '''<BR><A HREF="edit?id={i}&func=edit"><span class="normal"><B>EDIT</B></a>
-                                            &nbsp;|&nbsp;<A HREF="bmarks?id={i}&func=del"><B>DELETE</B></a>&nbsp;</span>'''.format(i=bm_id)
-            else:
-                bmark_user_edit_string = '''<BR><span class="normal">Created by <A HREF="bmarks?whose={o}">
-                                            <B>{o}</B></a>&nbsp;</span>'''.format(o=owner)
-            tags_sql += 'AND length(tag)>0 GROUP BY tag ORDER BY tag LIMIT 15'
-            tags_qry = db_qry([tags_sql, None], 'select')
-            if notes:
-                notes_string = '<BR><span class="small"><B>{n}</B></span>'.format(n=notes)
-            return_data += '''<TABLE><TR><TD valign="top"><span class="big">{l}&nbsp;&nbsp;&nbsp;</span></TD>
-                                <TD width="65%"><span class="big"><A HREF="{u}">{n}</a></span>
-                                {no}{b}</TD>'''.format(l=last_update, u=url, n=name,
-                                                       no=notes_string, b=bmark_user_edit_string)
-            num_tags = len(tags_qry)
-            if num_tags:
-                return_data += '<TD width="95%" valign="top" align="right">'
-                tag_counter = 0
-                for tag_row in tags_qry:
-                    tag = tag_row[0]
-                    tag_sql = "SELECT id FROM tags WHERE tag='{t}' ".format(t=tag)
-                    if hash_check() and request.query.get('whose'):
-                        sql_owner = request.query.get('whose')
-                        if request.query.get('whose') == 'mine':
-                            sql_owner = username
-                        tag_sql += "AND owner='{u}'".format(u=sql_owner)
-                    tag_sql += 'ORDER BY id LIMIT 1'
-                    tag_qry_res = db_qry([tag_sql, None], 'select')
-                    if not tag_qry_res:
-                        return_data += '<span class="bad">Tags query FAILED:<BR>{}<BR>'.format(tag_sql)
-                        return return_data
-                    tag_id = tag_qry_res[0][0]
-                    return_data += '<A HREF="tags?id={tid}">{t}</a>&nbsp;&nbsp;'.format(tid=tag_id,
-                                                                                           t=tag)
-                    tag_counter += 1
-                    if tag_counter > 4:
-                        tag_counter = 0
-                        return_data += '<BR>'
-                return_data += '&nbsp;</TD>'
-            return_data += '</TR></TABLE><HR><BR>'
-        # pagination settings
-        my_row_count = num_bmarks_all
-        total_pages = ceil(int(my_row_count) / int(max_results))
-        pagination = ''
-
-        # Create a PREV link if one is needed
-        if page > 1:
-            pagination += '''<A STYLE="text-decoration:none" title="PREVIOUS PAGE" HREF="bmarks?whose={w}&page={p}&num={u}">
-                             <span class="huge"><H1>&larr;</H1></span></A>'''.format(w=whose,
-                                                                                     p=prev,
-                                                                                     u=user_num_bmarks)
-        if not request.query.get('whose'):
-            page = 0
-            total_pages = 0
-        # Create a NEXT link if one is needed
-        if page < total_pages:
-            pagination += '''<A STYLE="text-decoration:none" title="NEXT PAGE" HREF="bmarks?whose={w}&page={n}&num={u}">
-                             <span class="huge"><H1>&rarr;</H1></span></A>'''.format(w=whose, n=next, u=user_num_bmarks)
-        else:
-            # adjust the total count when on the last page since
-            # it might not have user_num_bmarks items remaining
-            new_max_results = (int(max_results) - ((int(page) * int(max_results)) - int(my_row_count)))
-            max_results = new_max_results
-        plural = ''
-        if my_row_count:
-            plural = 's'
-        return_data += '''<TABLE width="100%"><TR COLSPAN="1"><TD>&nbsp;</TD></TR>
-                          <TR><TD COLSPAN="9">&nbsp;{m} Tasti bookmark{p}</TD>
-                          <TD class="page" COLSPAN="4"><B>{pa}</B></TD></TR></TABLE><BR>'''.format(m=my_row_count,
-                                                                                                   p=plural,
-                                                                                                   pa=pagination)
-    else:
-        return_data += '<BR>There are currently no bookmarks<BR><BR>'
+    return_data = '<TABLE><TR><TD>{b}</TD>'.format(b=bmarks_intro)
+    # only render the bmarks/page menu on the 'MY BOOKMARKS' page
+    if is_mine_page:
+        prefix = '<TD width="77%">&nbsp;</TD><TD align="center" valign="top">'
+        return_data += render_page_menu(url_get_base, marker_dict, prefix)
+    return_data += '</TR></TABLE>'
+    for bmark_row in bmarks_qry:
+        return_data += render_listing_bmark_row(bmark_row, username)
+    return_data += render_listing_pagination((page, prev, next_page), num_bmarks_all,
+                                             whose, user_num_bmarks)
     return return_data
 
 
@@ -529,10 +561,12 @@ def add_bmark_form(username):
         max_tags_per_row = 10
         return_data += '''<span class="big">Click below to add one (or more) of your
                         pre-existing tags to the new bookmark above:</span><BR><BR>'''
+        js_get = "document.getElementById('tags')"
         for raw_tag_name in tags_qry:
             tag_name = unescape(raw_tag_name[0]).strip()
-            return_data += '''<A onclick="document.getElementById('tags').value=document.getElementById('tags').value + ' ' + '{t}';">
-                              {t}</a>&nbsp;&nbsp;'''.format(t=tag_name)
+            return_data += (
+                f'''<A onclick="{js_get}.value={js_get}.value + ' ' + '{tag_name}';">'''
+                f'''\n                              {tag_name}</a>&nbsp;&nbsp;''')
             tag_counter += 1
             if tag_counter >= max_tags_per_row:
                 # start new row of tags
@@ -653,12 +687,16 @@ def edit_bmarks_form(username):
         all_tags_sql = "SELECT tag FROM tags WHERE owner='{u}' ORDER BY tag".format(u=username)
         all_tags_qry = db_qry([all_tags_sql, None], 'select')
         if all_tags_qry:
-            return_data += '<span class="big">Click below to add your pre-existing tags to the bookmark above:</span><BR><BR>'
+            return_data += ('<span class="big">Click below to add your pre-existing '
+                            'tags to the bookmark above:</span><BR><BR>')
             row_tag_count = 0
             max_tags_per_row = 10
+            js_get = "document.getElementById('tags')"
             for tag_l in all_tags_qry:
                 tag = escape((tag_l[0]).strip(), quote=True)
-                return_data += '''<A onclick="document.getElementById('tags').value=document.getElementById('tags').value + ' ' + '{t}';">{t}</a>&nbsp;&nbsp;'''.format(t=tag)
+                return_data += (
+                    f'''<A onclick="{js_get}.value={js_get}.value + ' ' + '{tag}';">'''
+                    f'''{tag}</a>&nbsp;&nbsp;''')
                 row_tag_count += 1
                 if row_tag_count > max_tags_per_row:
                     return_data += '<BR>'
@@ -669,10 +707,12 @@ def edit_bmarks_form(username):
     return return_data
 
 
-def add_bmark_db(username, bmark_tags_list=[''],
+def add_bmark_db(username, bmark_tags_list=None,
                  bmark_note='', bmark_name='', bmark_url=''):
     """Insert new bookmark into database."""
     return_data = ''
+    if bmark_tags_list is None:
+        bmark_tags_list = ['']
     if request.forms.get('url'):
         bmark_url = request.forms.get('url')
     if request.forms.get('name'):
@@ -696,8 +736,8 @@ def add_bmark_db(username, bmark_tags_list=[''],
             add_user_tag_vals = [username, tag]
             add_user_tag_qry = db_qry([add_user_tag_sql, add_user_tag_vals], 'insert')
             if add_user_tag_qry is False:
-                return_data += '<span class="bad">Failed to insert new tag ({t})<BR>{s}<BR></span>'.format(t=tag,
-                                                                                                           s=add_user_tag_sql)
+                return_data += ('<span class="bad">Failed to insert new tag '
+                                '({t})<BR>{s}<BR></span>').format(t=tag, s=add_user_tag_sql)
                 continue
         add_bmark_sql = 'INSERT INTO bmarks (owner, url, notes, tag, name) VALUES (%s, %s, %s, %s, %s)'
         add_bmark_vals = [username, bmark_url, bmark_note, tag, bmark_name]
@@ -706,8 +746,8 @@ def add_bmark_db(username, bmark_tags_list=[''],
             return_data += 'Bookmark <B>( {b} )</B> successfully added!<BR>'.format(b=bmark_name)
         else:
             # insert failed
-            return_data += '<span class="bad">Failed to insert new bookmark ({b})<BR>{s}<BR></span>'.format(b=bmark_name,
-                                                                                                            s=add_bmark_sql)
+            return_data += ('<span class="bad">Failed to insert new bookmark '
+                            '({b})<BR>{s}<BR></span>').format(b=bmark_name, s=add_bmark_sql)
     return return_data
 
 
@@ -718,7 +758,8 @@ def generate_tabs():
     import_selected = ''
     bmarklet_selected = ''
     tag_selected = ''
-    ie_comment = 'these comments between lis solve a bug in IE that prevents spaces appearing between list items that appear on different lines in the source'
+    ie_comment = ('these comments between lis solve a bug in IE that prevents spaces '
+                  'appearing between list items that appear on different lines in the source')
     selected = 'id="selected"'
     script = (request.environ.get('SCRIPT_URL') or request.path).split('/')[-1]
     if script == 'account':
@@ -783,7 +824,8 @@ def tag_rename(username, form_dict):
                 return_data += 'update tag_rename_qry query failed:<BR>{s}<BR>'.format(s=tag_rename_sql)
                 tag_updated = False
     if tag_updated:
-        return_data += '<BR>&nbsp;<span class="huge">Tag{s} successfully renamed.</span><BR><BR><BR>'.format(s=tag_plural)
+        return_data += ('<BR>&nbsp;<span class="huge">Tag{s} successfully '
+                        'renamed.</span><BR><BR><BR>').format(s=tag_plural)
     return return_data
 
 
@@ -853,7 +895,8 @@ def bmark_import_file(username, bmark_file_data):
 def bmark_import_form():
     """Show bookmark import form."""
     return_data = ''
-    return_data += '''<div id="content"><span class="big"><B>Tasti</B> currently supports bulk imports via an HTML bookmarks file
+    return_data += '''<div id="content"><span class="big"><B>Tasti</B> currently supports \
+bulk imports via an HTML bookmarks file
                        (from your web browser export):</span><BR><BR>
 	                   <FORM method="POST" action="import" id="import" enctype="multipart/form-data"><UL>
 	                   <LI>&nbsp;Upload a bookmarks file from your web browser:&nbsp;
@@ -926,7 +969,8 @@ def edit_tags(username):
         return_data += '''<BR><span class="huge">&nbsp;You do not have any tags to edit at this time.
                           Try <A HREF="add">adding</a> a bookmark to create new tags</span><BR><BR><BR>'''
         return return_data
-    return_data += '''<BR><span class="huge">Edit the tags that you wish to rename, or check the tags that you wish to delete:</span>
+    return_data += '''<BR><span class="huge">Edit the tags that you wish to rename, or \
+check the tags that you wish to delete:</span>
                         <FORM method="POST" action="edit_tags" id="edit_tags">
                             <span class="normal">&nbsp;Toggle all&nbsp;</span>
                         <INPUT TYPE="checkbox" onclick="toggle('chkbox1')"><BR><BR>
@@ -955,7 +999,16 @@ def show_bmarklet():
     base_url = 'http://{se}{sc}/'.format(se=request.environ.get('SERVER_NAME'),
                                          sc=request.environ.get('SCRIPT_NAME'))
     bmarklet_url = '{}add?url='.format(base_url)
-    bmarklet_string = """javascript:(function(){f='""" + bmarklet_url + """'+encodeURIComponent(window.location.href)+'&name='+encodeURIComponent(document.title)+'&notes='+encodeURIComponent(''+(window.getSelection?window.getSelection():document.getSelection?document.getSelection():document.selection.createRange().text));a=function(){if(!window.open(f+'noui=1&jump=doclose','d','location=yes,links=no,scrollbars=no,toolbar=no,width=550,height=550'))location.href=f+'jump=yes'};if(/Firefox/.test(navigator.userAgent)){setTimeout(a,0)}else{a()}})()"""
+    bmarklet_string = (
+        """javascript:(function(){f='""" + bmarklet_url +
+        """'+encodeURIComponent(window.location.href)+'&name='"""
+        """+encodeURIComponent(document.title)+'&notes='+encodeURIComponent(''+"""
+        """(window.getSelection?window.getSelection():document.getSelection?"""
+        """document.getSelection():document.selection.createRange().text));"""
+        """a=function(){if(!window.open(f+'noui=1&jump=doclose','d',"""
+        """'location=yes,links=no,scrollbars=no,toolbar=no,width=550,height=550'))"""
+        """location.href=f+'jump=yes'};if(/Firefox/.test(navigator.userAgent))"""
+        """{setTimeout(a,0)}else{a()}})()""")
     return_data += '''<BR><span class="huge">&nbsp;A bookmarklet is a link that you add to your browser's Toolbar.
                       It makes it easy to add a new bookmark to <B>Tasti</B>.</span><BR><BR>
                         Drag the link below to your toolbar, and then you can click that link when viewing any web 
@@ -964,64 +1017,72 @@ def show_bmarklet():
     return return_data
 
 
+def process_account_update(username):
+    """Apply a POSTed account update and return the status markup."""
+    password = ''
+    email = ''
+    fullname = ''
+    account_sql = 'UPDATE users SET '
+    # encode password and update in database
+    if request.forms.get('password0') and request.forms.get('password1'):
+        password0 = request.forms.get('password0').strip()
+        password1 = request.forms.get('password1').strip()
+        if password0 and password1 and password0 == password1:
+            password = hashlib.sha1(password0.encode()).hexdigest()
+            account_sql += "password='{p}', ".format(p=password)
+    # update name in database
+    if request.forms.get('fullname') and request.forms.get('fullname').strip():
+        fullname = request.forms.get('fullname').strip()
+        account_sql += "name='{f}', ".format(f=fullname)
+    # update email in database
+    if request.forms.get('email') and request.forms.get('email').strip():
+        email = request.forms.get('email').strip()
+        account_sql += "email='{e}', ".format(e=email)
+    if not (password or fullname or email):
+        return ''
+    account_sql += "username='{u}' WHERE username='{u}'".format(u=username)
+    account_qry = db_qry([account_sql, None], 'update')
+    if not account_qry:
+        return 'Account update failed:<BR>{s}<BR>'.format(s=account_sql)
+    return '<span class="big"><B><i>Update Successful</i></B></span><BR><BR>'
+
+
+def render_account_section(script, username):
+    """Render the account tab body for the requested script."""
+    if script == 'account':
+        return account_details_form(username)
+    if script == 'import':
+        bmark_file_data = ''
+        if request.method == 'POST':
+            bmark_file_data = request.files.get('upload_bmark')
+        if request.method == 'POST' and bmark_file_data and bmark_file_data.file:
+            # process file import
+            return bmark_import_file(username, bmark_file_data)
+        # show file import form
+        return bmark_import_form()
+    if script == 'bmarklet':
+        return show_bmarklet()
+    if script == 'edit_tags':
+        return edit_tags(username)
+    return '<BR>Unknown function<BR><BR>'
+
+
 def account_mgmt():
     """Render account management content."""
     return_data = ''
     auth = auth_check()
-    if auth['username'] and hash_check():
-        password = ''
-        email = ''
-        fullname = ''
-        username = auth['username']
-        return_data += '<span class="huge"><B>Tasti Account Management</B></span><BR><BR>'
-        account_sql = 'UPDATE users SET '
-        if request.method == 'POST':
-            # encode password and update in database
-            if request.forms.get('password0') and request.forms.get('password1'):
-                password0 = request.forms.get('password0').strip()
-                password1 = request.forms.get('password1').strip()
-                if password0 and password1 and password0 == password1:
-                    password = hashlib.sha1(password0.encode()).hexdigest()
-                    account_sql += "password='{p}', ".format(p=password)
-            # update name in database
-            if request.forms.get('fullname') and request.forms.get('fullname').strip():
-                fullname = request.forms.get('fullname').strip()
-                account_sql += "name='{f}', ".format(f=fullname)
-            # update email in database
-            if request.forms.get('email') and request.forms.get('email').strip():
-                email = request.forms.get('email').strip()
-                account_sql += "email='{e}', ".format(e=email)
-            if password or fullname or email:
-                account_sql += "username='{u}' WHERE username='{u}'".format(u=username)
-                account_qry = db_qry([account_sql, None], 'update')
-                if not account_qry:
-                    return_data += 'Account update failed:<BR>{s}<BR>'.format(s=account_sql)
-                else:
-                    return_data += '<span class="big"><B><i>Update Successful</i></B></span><BR><BR>'
-        # generate tab UI
-        script = (request.environ.get('SCRIPT_URL') or request.path).split('/')[-1]
-        return_data += generate_tabs()
-        if script == 'account':
-            return_data += account_details_form(username)
-        elif script == 'import':
-            bmark_file_data = ''
-            if request.method == 'POST':
-                bmark_file_data = request.files.get('upload_bmark')
-            if request.method == 'POST' and bmark_file_data and bmark_file_data.file:
-                # process file import
-                return_data += bmark_import_file(username, bmark_file_data)
-            else:
-                # show file import form
-                return_data += bmark_import_form()
-        elif script == 'bmarklet':
-            return_data += show_bmarklet()
-        elif script == 'edit_tags':
-            return_data += edit_tags(username)
-        else:
-            return_data += '<BR>Unknown function<BR><BR>'
-    else:
+    if not (auth['username'] and hash_check()):
         return_data += '''<BR>This page is only accessible to users who have
                             <A HREF="login?do=0">logged in</a>.<BR><BR>'''
+        return return_data
+    username = auth['username']
+    return_data += '<span class="huge"><B>Tasti Account Management</B></span><BR><BR>'
+    if request.method == 'POST':
+        return_data += process_account_update(username)
+    # generate tab UI
+    script = (request.environ.get('SCRIPT_URL') or request.path).split('/')[-1]
+    return_data += generate_tabs()
+    return_data += render_account_section(script, username)
     return return_data
 
 
@@ -1058,6 +1119,36 @@ def register_form():
     return return_data
 
 
+def registration_errors(username, password0, password1):
+    """Return a list of validation failure messages for a registration attempt."""
+    reg_fail_reasons = []
+    fail_template = '<span class="bad">{t}</span><BR><BR>'
+    min_passwd_length = 6
+    min_user_length = 5
+    if password0 != password1:
+        reason_str = 'Passwords do not match ( {} <> {} )'.format(password0, password1)
+        reg_fail_reasons.append(fail_template.format(t=reason_str))
+    if len(password0) < min_passwd_length:
+        reason_str = 'Password ({}) is too short, must be at least {} character'.format(
+            password0, min_passwd_length)
+        reg_fail_reasons.append(fail_template.format(t=reason_str))
+    if len(username) < min_user_length:
+        reason_str = 'Username ({}) is too short, must be at least {} character'.format(
+            username, min_user_length)
+        reg_fail_reasons.append(fail_template.format(t=reason_str))
+    if username == password0:
+        reason_str = 'Username ( {} ) and password ( {} ) must be different'.format(
+            username, password0)
+        reg_fail_reasons.append(fail_template.format(t=reason_str))
+    user_exists_sql = "SELECT username FROM users WHERE username='{u}'".format(u=username)
+    user_exists_qry = db_qry([user_exists_sql, None], 'select')
+    if user_exists_qry and user_exists_qry[0]:
+        reason_str = ('Username ( {} ) is already registered, please choose a '
+                      'different username.').format(username)
+        reg_fail_reasons.append(fail_template.format(t=reason_str))
+    return reg_fail_reasons
+
+
 def register():
     """Account registration content."""
     return_data = ''
@@ -1069,41 +1160,13 @@ def register():
                             <BR><BR>THANKS!'''.format(u=auth_payload['username'])
     elif request.method == 'POST' and request.forms.get('username') and request.forms.get('password0') and\
          request.forms.get('password1') and request.forms.get('email'):
-        reg_fail_reasons = []
-        fail_template = '<span class="bad">{t}</span><BR><BR>'
-        min_passwd_length = 6
-        min_user_length = 5
         username = escape(request.forms.get('username').strip().lower(), quote=True)
         full_name = escape(request.forms.get('fullname').strip(), quote=True)
         email = request.forms.get('email').strip().lower()
         password0 = request.forms.get('password0').strip()
         password1 = request.forms.get('password1').strip()
         # validate submitted values
-        if password0 != password1:
-            reason_str = 'Passwords do not match ( {} <> {} )'.format(password0, password1)
-            fail_reason = fail_template.format(t=reason_str)
-            reg_fail_reasons.append(fail_reason)
-        if len(password0) < min_passwd_length:
-            reason_str = 'Password ({}) is too short, must be at least {} character'.format(password0,
-                                                                                            min_passwd_length)
-            fail_reason = fail_template.format(t=reason_str)
-            reg_fail_reasons.append(fail_reason)
-        if len(username) < min_user_length:
-            reason_str = 'Username ({}) is too short, must be at least {} character'.format(username,
-                                                                                            min_user_length)
-            fail_reason = fail_template.format(t=reason_str)
-            reg_fail_reasons.append(fail_reason)
-        if username == password0:
-            reason_str = 'Username ( {} ) and password ( {} ) must be different'.format(username,
-                                                                                        password0)
-            fail_reason = fail_template.format(t=reason_str)
-            reg_fail_reasons.append(fail_reason)
-        user_exists_sql = "SELECT username FROM users WHERE username='{u}'".format(u=username)
-        user_exists_qry = db_qry([user_exists_sql, None], 'select')
-        if user_exists_qry and user_exists_qry[0]:
-            reason_str = 'Username ( {} ) is already registered, please choose a different username.'.format(username)
-            fail_reason = fail_template.format(t=reason_str)
-            reg_fail_reasons.append(fail_reason)
+        reg_fail_reasons = registration_errors(username, password0, password1)
         if reg_fail_reasons:
             # failure from above
             for failure in reg_fail_reasons:
@@ -1138,7 +1201,8 @@ def login():
     login_success_str = '<BR>Congratulations, you have successfully logged in.<BR><BR>'
     if request.get_cookie('tasti_bmarks_per_page'):
         bmarks_per_page = int(request.get_cookie('tasti_bmarks_per_page'))
-    if not auth_payload['is_authenticated'] and request.method == 'POST' and request.forms.get('username') and request.forms.get('password'):
+    if (not auth_payload['is_authenticated'] and request.method == 'POST'
+            and request.forms.get('username') and request.forms.get('password')):
         # not authenticated yet, attempting to auth
         username = request.forms.get('username').strip().lower()
         password = hashlib.sha1(request.forms.get('password').encode().strip()).hexdigest()
@@ -1207,6 +1271,7 @@ def hash_check():
     hash_qry = db_qry([hash_sql, None], 'select')
     if len(hash_qry) > 0 and hash_qry[0]:
         return hash_qry
+    return None
 
 
 def db_qry(sql_pl, operation):
@@ -1218,14 +1283,14 @@ def db_qry(sql_pl, operation):
     try:
         conn = psycopg2.connect(CONN_STRING)
         conn.autocommit = True
-    except Exception as err:
+    except psycopg2.Error as err:
         print(f'Database connection failed due to error:\t{err}')
         return ''
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     # invoke the SQL
     try:
         cursor.execute(sql, sql_vals)
-    except Exception as err:
+    except psycopg2.Error as err:
         # query failed
         print('SQL ( {} )\t failed due to error:\t{}'.format(cursor.query, err))
         ret_val = ''
